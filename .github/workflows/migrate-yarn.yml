@@ -1,0 +1,85 @@
+name: Migrate Baritone to Yarn
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  migrate:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.10.2"
+
+      - name: Migrate Mojmap sources to Yarn
+        run: |
+          gradle migrateMappings --mappings "1.21.4+build.8" --overrideInputsIHaveABackup
+
+      - name: Switch build to Yarn
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          p = Path("build.gradle")
+          s = p.read_text(encoding="utf-8")
+          s = s.replace(
+              'mappings loom.officialMojangMappings()',
+              'mappings "net.fabricmc:yarn:1.21.4+build.8:v2"'
+          )
+          p.write_text(s, encoding="utf-8")
+          PY
+
+      - name: Verify Yarn names
+        shell: bash
+        run: |
+          test -f src/main/java/baritone/Baritone.java
+          test -f src/main/java/baritone/behavior/LookBehavior.java
+          grep -R "import net.minecraft.client.MinecraftClient;" src --include="*.java" >/dev/null
+          if grep -R "import net.minecraft.client.Minecraft;" src --include="*.java" >/dev/null; then
+            echo "Found Mojmap Minecraft imports after migration"
+            exit 1
+          fi
+          if grep -R "net.minecraft.network.protocol" src --include="*.java" >/dev/null; then
+            echo "Found Mojmap network imports after migration"
+            exit 1
+          fi
+
+      - name: Compile Yarn sources
+        run: gradle compileJava --no-daemon
+
+      - name: Commit migrated sources
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add src build.gradle settings.gradle gradle.properties
+
+          if git diff --cached --quiet; then
+            echo "No migration changes to commit"
+            exit 0
+          fi
+
+          git commit -m "migrate Baritone 1.21.4 sources to Yarn"
+          git push origin main
