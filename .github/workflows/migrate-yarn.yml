@@ -31,6 +31,17 @@ jobs:
         with:
           gradle-version: "9.5.0"
 
+      - name: Prepare single Yarn source set
+        shell: bash
+        run: |
+          mkdir -p src/main/java
+          for root in api launch schematica_api; do
+            if [ -d "src/$root/java" ]; then
+              cp -R "src/$root/java/." src/main/java/
+            fi
+          done
+          rm -rf src/api src/launch src/schematica_api
+
       - name: Migrate Mojmap sources to Yarn
         shell: bash
         run: |
