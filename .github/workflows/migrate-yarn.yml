@@ -32,8 +32,18 @@ jobs:
           gradle-version: "8.10.2"
 
       - name: Migrate Mojmap sources to Yarn
+        shell: bash
         run: |
-          gradle migrateMappings --mappings "1.21.4+build.8" --overrideInputsIHaveABackup
+          set -o pipefail
+          gradle migrateMappings --mappings "1.21.4+build.8" --overrideInputsIHaveABackup --stacktrace --info 2>&1 | tee migration.log
+
+      - name: Upload migration log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: migration-log
+          path: migration.log
+          if-no-files-found: warn
 
       - name: Switch build to Yarn
         shell: bash
