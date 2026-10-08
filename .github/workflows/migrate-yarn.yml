@@ -65,15 +65,28 @@ jobs:
         run: |
           test -f src/main/java/baritone/Baritone.java
           test -f src/main/java/baritone/behavior/LookBehavior.java
-          grep -R "import net.minecraft.client.MinecraftClient;" src --include="*.java" >/dev/null
-          if grep -R "import net.minecraft.client.Minecraft;" src --include="*.java" >/dev/null; then
-            echo "Found Mojmap Minecraft imports after migration"
+
+          if grep -R -E 'net\.minecraft\.client\.Minecraft(;|\.)' src --include="*.java" >/dev/null; then
+            echo "Found Mojmap Minecraft references after migration"
             exit 1
           fi
-          if grep -R "net.minecraft.network.protocol" src --include="*.java" >/dev/null; then
-            echo "Found Mojmap network imports after migration"
+
+          if grep -R -E 'net\.minecraft\.util\.Mth(;|\.)' src --include="*.java" >/dev/null; then
+            echo "Found Mojmap Mth references after migration"
             exit 1
           fi
+
+          if grep -R 'net\.minecraft\.network\.protocol' src --include="*.java" >/dev/null; then
+            echo "Found Mojmap network references after migration"
+            exit 1
+          fi
+
+          if grep -R -E 'net\.minecraft\.class_[0-9]+' src --include="*.java" >/dev/null; then
+            echo "Found Intermediary class references after migration"
+            exit 1
+          fi
+
+          grep -R -E 'MinecraftClient|MathHelper|PlayerMoveC2SPacket' src --include="*.java" >/dev/null
 
       - name: Compile Yarn sources
         run: gradle compileJava --no-daemon
