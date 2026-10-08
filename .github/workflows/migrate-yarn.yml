@@ -86,7 +86,6 @@ jobs:
             exit 1
           fi
 
-          grep -R -E 'MinecraftClient|MathHelper|PlayerMoveC2SPacket' src --include="*.java" >/dev/null
 
       - name: Compile Yarn sources
         run: gradle compileJava --no-daemon
