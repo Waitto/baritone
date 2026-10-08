@@ -1,0 +1,48 @@
+plugins {
+    id "fabric-loom" version "1.17.20"
+}
+
+version = "1.13.1-yarn"
+group = "baritone"
+
+repositories {
+    maven {
+        name = "babbaj-repo"
+        url = "https://babbaj.github.io/maven/"
+    }
+    mavenCentral()
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:1.21.4"
+    mappings loom.officialMojangMappings()
+    modImplementation "net.fabricmc:fabric-loader:0.16.9"
+
+    compileOnly "org.spongepowered:mixin:0.8.5"
+    implementation "dev.babbaj:nether-pathfinder:1.4.1"
+    implementation "com.google.code.findbugs:jsr305:3.0.2"
+}
+
+sourceSets {
+    main {
+        java {
+            srcDirs = [
+                "src/api/java",
+                "src/main/java",
+                "src/launch/java",
+                "src/schematica_api/java"
+            ]
+        }
+    }
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = "UTF-8"
+    options.release = 21
+}
