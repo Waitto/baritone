@@ -39,12 +39,11 @@ import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import net.minecraft.ChatFormatting;
-import net.minecraft.network.chat.MutableComponent;
-import net.minecraft.network.chat.ClickEvent;
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.HoverEvent;
-import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.text.ClickEvent;
+import net.minecraft.text.HoverEvent;
+import net.minecraft.text.MutableText;
+import net.minecraft.text.Text;
+import net.minecraft.util.Formatting;
 
 import static baritone.api.command.IBaritoneChatControl.FORCE_COMMAND_PREFIX;
 
@@ -62,22 +61,22 @@ public class WaypointsCommand extends Command {
         if (action == null) {
             throw new CommandInvalidTypeException(args.consumed(), "an action");
         }
-        BiFunction<IWaypoint, Action, Component> toComponent = (waypoint, _action) -> {
-            MutableComponent component = Component.literal("");
-            MutableComponent tagComponent = Component.literal(waypoint.getTag().name() + " ");
-            tagComponent.setStyle(tagComponent.getStyle().withColor(ChatFormatting.GRAY));
+        BiFunction<IWaypoint, Action, Text> toComponent = (waypoint, _action) -> {
+            MutableText component = Text.literal("");
+            MutableText tagComponent = Text.literal(waypoint.getTag().name() + " ");
+            tagComponent.setStyle(tagComponent.getStyle().withColor(Formatting.GRAY));
             String name = waypoint.getName();
-            MutableComponent nameComponent = Component.literal(!name.isEmpty() ? name : "<empty>");
-            nameComponent.setStyle(nameComponent.getStyle().withColor(!name.isEmpty() ? ChatFormatting.GRAY : ChatFormatting.DARK_GRAY));
-            MutableComponent timestamp = Component.literal(" @ " + new Date(waypoint.getCreationTimestamp()));
-            timestamp.setStyle(timestamp.getStyle().withColor(ChatFormatting.DARK_GRAY));
+            MutableText nameComponent = Text.literal(!name.isEmpty() ? name : "<empty>");
+            nameComponent.setStyle(nameComponent.getStyle().withColor(!name.isEmpty() ? Formatting.GRAY : Formatting.DARK_GRAY));
+            MutableText timestamp = Text.literal(" @ " + new Date(waypoint.getCreationTimestamp()));
+            timestamp.setStyle(timestamp.getStyle().withColor(Formatting.DARK_GRAY));
             component.append(tagComponent);
             component.append(nameComponent);
             component.append(timestamp);
             component.setStyle(component.getStyle()
                     .withHoverEvent(new HoverEvent(
                             HoverEvent.Action.SHOW_TEXT,
-                            Component.literal("Click to select")
+                            Text.literal("Click to select")
                     ))
                     .withClickEvent(new ClickEvent(
                             ClickEvent.Action.RUN_COMMAND,
@@ -92,7 +91,7 @@ public class WaypointsCommand extends Command {
                     ));
             return component;
         };
-        Function<IWaypoint, Component> transform = waypoint ->
+        Function<IWaypoint, Text> transform = waypoint ->
                 toComponent.apply(waypoint, action == Action.LIST ? Action.INFO : action);
         if (action == Action.LIST) {
             IWaypoint.Tag tag = args.hasAny() ? IWaypoint.Tag.getByName(args.peekString()) : null;
@@ -143,8 +142,8 @@ public class WaypointsCommand extends Command {
             args.requireMax(0);
             IWaypoint waypoint = new Waypoint(name, tag, pos);
             ForWaypoints.waypoints(this.baritone).addWaypoint(waypoint);
-            MutableComponent component = Component.literal("Waypoint added: ");
-            component.setStyle(component.getStyle().withColor(ChatFormatting.GRAY));
+            MutableText component = Text.literal("Waypoint added: ");
+            component.setStyle(component.getStyle().withColor(Formatting.GRAY));
             component.append(toComponent.apply(waypoint, Action.INFO));
             logDirect(component);
         } else if (action == Action.CLEAR) {
@@ -159,7 +158,7 @@ public class WaypointsCommand extends Command {
                 ForWaypoints.waypoints(this.baritone).removeWaypoint(waypoint);
             }
             deletedWaypoints.computeIfAbsent(baritone.getWorldProvider().getCurrentWorld(), k -> new ArrayList<>()).addAll(Arrays.<IWaypoint>asList(waypoints));
-            MutableComponent textComponent = Component.literal(String.format("Cleared %d waypoints, click to restore them", waypoints.length));
+            MutableText textComponent = Text.literal(String.format("Cleared %d waypoints, click to restore them", waypoints.length));
             textComponent.setStyle(textComponent.getStyle().withClickEvent(new ClickEvent(
                     ClickEvent.Action.RUN_COMMAND,
                     String.format(
@@ -240,7 +239,7 @@ public class WaypointsCommand extends Command {
                 if (action == Action.INFO) {
                     logDirect(transform.apply(waypoint));
                     logDirect(String.format("Position: %s", waypoint.getLocation()));
-                    MutableComponent deleteComponent = Component.literal("Click to delete this waypoint");
+                    MutableText deleteComponent = Text.literal("Click to delete this waypoint");
                     deleteComponent.setStyle(deleteComponent.getStyle().withClickEvent(new ClickEvent(
                             ClickEvent.Action.RUN_COMMAND,
                             String.format(
@@ -251,7 +250,7 @@ public class WaypointsCommand extends Command {
                                     waypoint.getCreationTimestamp()
                             )
                     )));
-                    MutableComponent goalComponent = Component.literal("Click to set goal to this waypoint");
+                    MutableText goalComponent = Text.literal("Click to set goal to this waypoint");
                     goalComponent.setStyle(goalComponent.getStyle().withClickEvent(new ClickEvent(
                             ClickEvent.Action.RUN_COMMAND,
                             String.format(
@@ -262,7 +261,7 @@ public class WaypointsCommand extends Command {
                                     waypoint.getCreationTimestamp()
                             )
                     )));
-                    MutableComponent recreateComponent = Component.literal("Click to show a command to recreate this waypoint");
+                    MutableText recreateComponent = Text.literal("Click to show a command to recreate this waypoint");
                     recreateComponent.setStyle(recreateComponent.getStyle().withClickEvent(new ClickEvent(
                             ClickEvent.Action.SUGGEST_COMMAND,
                             String.format(
@@ -276,7 +275,7 @@ public class WaypointsCommand extends Command {
                                     waypoint.getLocation().z
                             )
                     )));
-                    MutableComponent backComponent = Component.literal("Click to return to the waypoints list");
+                    MutableText backComponent = Text.literal("Click to return to the waypoints list");
                     backComponent.setStyle(backComponent.getStyle().withClickEvent(new ClickEvent(
                             ClickEvent.Action.RUN_COMMAND,
                             String.format(
@@ -292,7 +291,7 @@ public class WaypointsCommand extends Command {
                 } else if (action == Action.DELETE) {
                     ForWaypoints.waypoints(this.baritone).removeWaypoint(waypoint);
                     deletedWaypoints.computeIfAbsent(baritone.getWorldProvider().getCurrentWorld(), k -> new ArrayList<>()).add(waypoint);
-                    MutableComponent textComponent = Component.literal("That waypoint has successfully been deleted, click to restore it");
+                    MutableText textComponent = Text.literal("That waypoint has successfully been deleted, click to restore it");
                     textComponent.setStyle(textComponent.getStyle().withClickEvent(new ClickEvent(
                             ClickEvent.Action.RUN_COMMAND,
                             String.format(

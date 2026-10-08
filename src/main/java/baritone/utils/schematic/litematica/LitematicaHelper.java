@@ -25,18 +25,17 @@ import fi.dy.masa.litematica.data.DataManager;
 import fi.dy.masa.litematica.schematic.placement.SchematicPlacement;
 import fi.dy.masa.litematica.schematic.placement.SubRegionPlacement;
 import fi.dy.masa.litematica.world.SchematicWorldHandler;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Vec3i;
-import net.minecraft.util.Tuple;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.Mirror;
-import net.minecraft.world.level.block.Rotation;
-import net.minecraft.world.level.block.state.BlockState;
-
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Supplier;
+import net.minecraft.block.BlockState;
+import net.minecraft.util.BlockMirror;
+import net.minecraft.util.BlockRotation;
+import net.minecraft.util.Pair;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Vec3i;
+import net.minecraft.world.World;
 
 /**
  * Helper class that provides access or processes data related to Litmatica schematics.
@@ -69,12 +68,12 @@ public final class LitematicaHelper {
         return DataManager.getSchematicPlacementManager().getAllSchematicsPlacements().get(i);
     }
 
-    private static Vec3i transform(Vec3i in, Mirror mirror, Rotation rotation) {
+    private static Vec3i transform(Vec3i in, BlockMirror mirror, BlockRotation rotation) {
         int x = in.getX();
         int z = in.getZ();
-        if (mirror == Mirror.LEFT_RIGHT) {
+        if (mirror == BlockMirror.LEFT_RIGHT) {
             z = -z;
-        } else if (mirror == Mirror.FRONT_BACK) {
+        } else if (mirror == BlockMirror.FRONT_BACK) {
             x = -x;
         }
         switch (rotation) {
@@ -93,7 +92,7 @@ public final class LitematicaHelper {
      * @param i   index of the Schematic in the schematic placement list.
      * @return    The transformed schematic and the position of its minimum corner
      */
-    public static Tuple<IStaticSchematic, Vec3i> getSchematic(int i) {
+    public static Pair<IStaticSchematic, Vec3i> getSchematic(int i) {
         SchematicPlacement placement = getPlacement(i);
         int minX = Integer.MAX_VALUE;
         int minY = Integer.MAX_VALUE;
@@ -101,8 +100,8 @@ public final class LitematicaHelper {
         HashMap<Vec3i, StaticSchematic> subRegions = new HashMap<>();
 
         // doing this the normal way class loaded WorldSchematic too early
-        Supplier<Level> supplier = SchematicWorldHandler::getSchematicWorld;
-        Level schematicWorld = supplier.get();
+        Supplier<World> supplier = SchematicWorldHandler::getSchematicWorld;
+        World schematicWorld = supplier.get();
 
         for (Map.Entry<String, SubRegionPlacement> entry : placement.getEnabledRelativeSubRegionPlacements().entrySet()) {
             SubRegionPlacement subPlacement = entry.getValue();
@@ -116,24 +115,24 @@ public final class LitematicaHelper {
             minX = Math.min(minX, pos.getX() + mx);
             minY = Math.min(minY, pos.getY() + my);
             minZ = Math.min(minZ, pos.getZ() + mz);
-            BlockPos origin = placement.getOrigin().offset(pos).offset(mx, my, mz);
+            BlockPos origin = placement.getOrigin().add(pos).add(mx, my, mz);
             BlockState[][][] states = new BlockState[Math.abs(size.getX())][Math.abs(size.getZ())][Math.abs(size.getY())];
             for (int x = 0; x < states.length; x++) {
                 for (int z = 0; z < states[x].length; z++) {
                     for (int y = 0; y < states[x][z].length; y++) {
-                        states[x][z][y] = schematicWorld.getBlockState(origin.offset(x, y, z));
+                        states[x][z][y] = schematicWorld.getBlockState(origin.add(x, y, z));
                     }
                 }
             }
             StaticSchematic schematic = new StaticSchematic(states);
-            subRegions.put(pos.offset(mx, my, mz), schematic);
+            subRegions.put(pos.add(mx, my, mz), schematic);
         }
         LitematicaPlacementSchematic composite = new LitematicaPlacementSchematic(placement.getName());
         for (Map.Entry<Vec3i, StaticSchematic> entry : subRegions.entrySet()) {
-            Vec3i pos = entry.getKey().offset(-minX, -minY, -minZ);
+            Vec3i pos = entry.getKey().add(-minX, -minY, -minZ);
             composite.put(entry.getValue(), pos.getX(), pos.getY(), pos.getZ());
         }
-        return new Tuple<>(composite, placement.getOrigin().offset(minX, minY, minZ));
+        return new Pair<>(composite, placement.getOrigin().add(minX, minY, minZ));
     }
 
     private static class LitematicaPlacementSchematic extends CompositeSchematic implements IStaticSchematic {

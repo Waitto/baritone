@@ -22,23 +22,26 @@ import baritone.api.Settings;
 import baritone.utils.accessor.IEntityRenderManager;
 import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.vertex.*;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.CoreShaders;
-import net.minecraft.client.renderer.GameRenderer;
-import net.minecraft.client.renderer.RenderType;
-import net.minecraft.client.renderer.ShaderProgram;
-import net.minecraft.client.renderer.texture.TextureManager;
-import net.minecraft.world.phys.AABB;
-import net.minecraft.world.phys.Vec3;
-
-import java.awt.*;
+import net.minecraft.client.render.*;
+import java.awt.Color;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gl.ShaderProgramKeys;
+import net.minecraft.client.render.BufferBuilder;
+import net.minecraft.client.render.BufferRenderer;
+import net.minecraft.client.render.BuiltBuffer;
+import net.minecraft.client.render.Tessellator;
+import net.minecraft.client.render.VertexFormat;
+import net.minecraft.client.render.VertexFormats;
+import net.minecraft.client.texture.TextureManager;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.util.math.Box;
+import net.minecraft.util.math.Vec3d;
 
 public interface IRenderer {
 
-    Tesselator tessellator = Tesselator.getInstance();
-    IEntityRenderManager renderManager = (IEntityRenderManager) Minecraft.getInstance().getEntityRenderDispatcher();
-    TextureManager textureManager = Minecraft.getInstance().getTextureManager();
+    Tessellator tessellator = Tessellator.getInstance();
+    IEntityRenderManager renderManager = (IEntityRenderManager) MinecraftClient.getInstance().getEntityRenderDispatcher();
+    TextureManager textureManager = MinecraftClient.getInstance().getTextureManager();
     Settings settings = BaritoneAPI.getSettings();
 
     float[] color = new float[]{1.0F, 1.0F, 1.0F, 255.0F};
@@ -53,12 +56,12 @@ public interface IRenderer {
 
     static BufferBuilder startLines(Color color, float alpha, float lineWidth, boolean ignoreDepth) {
         RenderSystem.enableBlend();
-        RenderSystem.setShader(CoreShaders.POSITION_COLOR);
+        RenderSystem.setShader(ShaderProgramKeys.POSITION_COLOR);
         RenderSystem.blendFuncSeparate(
-                GlStateManager.SourceFactor.SRC_ALPHA,
-                GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA,
-                GlStateManager.SourceFactor.ONE,
-                GlStateManager.DestFactor.ZERO
+                GlStateManager.SrcFactor.SRC_ALPHA,
+                GlStateManager.DstFactor.ONE_MINUS_SRC_ALPHA,
+                GlStateManager.SrcFactor.ONE,
+                GlStateManager.DstFactor.ZERO
         );
         glColor(color, alpha);
         RenderSystem.lineWidth(lineWidth);
@@ -68,8 +71,8 @@ public interface IRenderer {
         if (ignoreDepth) {
             RenderSystem.disableDepthTest();
         }
-        RenderSystem.setShader(CoreShaders.RENDERTYPE_LINES);
-        return tessellator.begin(VertexFormat.Mode.LINES, DefaultVertexFormat.POSITION_COLOR_NORMAL);
+        RenderSystem.setShader(ShaderProgramKeys.RENDERTYPE_LINES);
+        return tessellator.begin(VertexFormat.DrawMode.LINES, VertexFormats.LINES);
     }
 
     static BufferBuilder startLines(Color color, float lineWidth, boolean ignoreDepth) {
@@ -77,9 +80,9 @@ public interface IRenderer {
     }
 
     static void endLines(BufferBuilder bufferBuilder, boolean ignoredDepth) {
-        MeshData meshData = bufferBuilder.build();
+        BuiltBuffer meshData = bufferBuilder.endNullable();
         if (meshData != null) {
-            BufferUploader.drawWithShader(meshData);
+            BufferRenderer.drawWithGlobalProgram(meshData);
         }
 
         if (ignoredDepth) {
@@ -91,7 +94,7 @@ public interface IRenderer {
         RenderSystem.disableBlend();
     }
 
-    static void emitLine(BufferBuilder bufferBuilder, PoseStack stack, double x1, double y1, double z1, double x2, double y2, double z2) {
+    static void emitLine(BufferBuilder bufferBuilder, MatrixStack stack, double x1, double y1, double z1, double x2, double y2, double z2) {
         final double dx = x2 - x1;
         final double dy = y2 - y1;
         final double dz = z2 - z1;
@@ -104,7 +107,7 @@ public interface IRenderer {
         emitLine(bufferBuilder, stack, x1, y1, z1, x2, y2, z2, nx, ny, nz);
     }
 
-    static void emitLine(BufferBuilder bufferBuilder, PoseStack stack,
+    static void emitLine(BufferBuilder bufferBuilder, MatrixStack stack,
                          double x1, double y1, double z1,
                          double x2, double y2, double z2,
                          double nx, double ny, double nz) {
@@ -115,18 +118,18 @@ public interface IRenderer {
         );
     }
 
-    static void emitLine(BufferBuilder bufferBuilder, PoseStack stack,
+    static void emitLine(BufferBuilder bufferBuilder, MatrixStack stack,
                          float x1, float y1, float z1,
                          float x2, float y2, float z2,
                          float nx, float ny, float nz) {
-        PoseStack.Pose pose = stack.last();
+        MatrixStack.Entry pose = stack.peek();
 
-        bufferBuilder.addVertex(pose, x1, y1, z1).setColor(color[0], color[1], color[2], color[3]).setNormal(pose, nx, ny, nz);
-        bufferBuilder.addVertex(pose, x2, y2, z2).setColor(color[0], color[1], color[2], color[3]).setNormal(pose, nx, ny, nz);
+        bufferBuilder.vertex(pose, x1, y1, z1).color(color[0], color[1], color[2], color[3]).normal(pose, nx, ny, nz);
+        bufferBuilder.vertex(pose, x2, y2, z2).color(color[0], color[1], color[2], color[3]).normal(pose, nx, ny, nz);
     }
 
-    static void emitAABB(BufferBuilder bufferBuilder, PoseStack stack, AABB aabb) {
-        AABB toDraw = aabb.move(-renderManager.renderPosX(), -renderManager.renderPosY(), -renderManager.renderPosZ());
+    static void emitAABB(BufferBuilder bufferBuilder, MatrixStack stack, Box aabb) {
+        Box toDraw = aabb.offset(-renderManager.renderPosX(), -renderManager.renderPosY(), -renderManager.renderPosZ());
 
         // bottom
         emitLine(bufferBuilder, stack, toDraw.minX, toDraw.minY, toDraw.minZ, toDraw.maxX, toDraw.minY, toDraw.minZ, 1.0, 0.0, 0.0);
@@ -145,11 +148,11 @@ public interface IRenderer {
         emitLine(bufferBuilder, stack, toDraw.minX, toDraw.minY, toDraw.maxZ, toDraw.minX, toDraw.maxY, toDraw.maxZ, 0.0, 1.0, 0.0);
     }
 
-    static void emitAABB(BufferBuilder bufferBuilder, PoseStack stack, AABB aabb, double expand) {
-        emitAABB(bufferBuilder, stack, aabb.inflate(expand, expand, expand));
+    static void emitAABB(BufferBuilder bufferBuilder, MatrixStack stack, Box aabb, double expand) {
+        emitAABB(bufferBuilder, stack, aabb.expand(expand, expand, expand));
     }
 
-    static void emitLine(BufferBuilder bufferBuilder, PoseStack stack, Vec3 start, Vec3 end) {
+    static void emitLine(BufferBuilder bufferBuilder, MatrixStack stack, Vec3d start, Vec3d end) {
         double vpX = renderManager.renderPosX();
         double vpY = renderManager.renderPosY();
         double vpZ = renderManager.renderPosZ();

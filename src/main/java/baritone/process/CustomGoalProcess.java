@@ -23,7 +23,7 @@ import baritone.api.process.ICustomGoalProcess;
 import baritone.api.process.PathingCommand;
 import baritone.api.process.PathingCommandType;
 import baritone.utils.BaritoneProcessHelper;
-import net.minecraft.ChatFormatting;
+import net.minecraft.util.Formatting;
 
 /**
  * As set by ExampleBaritoneControl or something idk
@@ -61,7 +61,7 @@ public final class CustomGoalProcess extends BaritoneProcessHelper implements IC
             try {
                 baritone.getElytraProcess().pathTo(goal);
             } catch (IllegalArgumentException e) {
-                logDirect("Failed to update elytra goal because: " + e.getMessage(), ChatFormatting.RED);
+                logDirect("Failed to update elytra goal because: " + e.getMessage(), Formatting.RED);
             }
         }
         if (this.state == State.NONE) {

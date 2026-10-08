@@ -28,14 +28,13 @@ import baritone.api.process.PathingCommand;
 import baritone.api.process.PathingCommandType;
 import baritone.api.utils.BetterBlockPos;
 import baritone.utils.BaritoneProcessHelper;
-import net.minecraft.core.BlockPos;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.item.ItemEntity;
-import net.minecraft.world.item.ItemStack;
-
 import java.util.List;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.ItemEntity;
+import net.minecraft.item.ItemStack;
+import net.minecraft.util.math.BlockPos;
 
 /**
  * Follow an entity
@@ -62,10 +61,10 @@ public final class FollowProcess extends BaritoneProcessHelper implements IFollo
     private Goal towards(Entity following) {
         BlockPos pos;
         if (Baritone.settings().followOffsetDistance.value == 0 || into) {
-            pos = following.blockPosition();
+            pos = following.getBlockPos();
         } else {
-            GoalXZ g = GoalXZ.fromDirection(following.position(), Baritone.settings().followOffsetDirection.value, Baritone.settings().followOffsetDistance.value);
-            pos = new BetterBlockPos(g.getX(), following.position().y, g.getZ());
+            GoalXZ g = GoalXZ.fromDirection(following.getPos(), Baritone.settings().followOffsetDirection.value, Baritone.settings().followOffsetDistance.value);
+            pos = new BetterBlockPos(g.getX(), following.getPos().y, g.getZ());
         }
         if (into) {
             return new GoalBlock(pos);
@@ -85,7 +84,7 @@ public final class FollowProcess extends BaritoneProcessHelper implements IFollo
             return false;
         }
         int maxDist = Baritone.settings().followTargetMaxDistance.value;
-        if (maxDist != 0 && entity.distanceToSqr(ctx.player()) > maxDist * maxDist) {
+        if (maxDist != 0 && entity.squaredDistanceTo(ctx.player()) > maxDist * maxDist) {
             return false;
         }
         // this used to also check that the entity is in ctx.entitiesStream(), which it is, because that's where
@@ -129,7 +128,7 @@ public final class FollowProcess extends BaritoneProcessHelper implements IFollo
 
     @Override
     public void pickup(Predicate<ItemStack> filter) {
-        this.filter = e -> e instanceof ItemEntity && filter.test(((ItemEntity) e).getItem());
+        this.filter = e -> e instanceof ItemEntity && filter.test(((ItemEntity) e).getStack());
         this.into = true;
     }
 

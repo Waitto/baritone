@@ -18,11 +18,10 @@
 package baritone.process.elytra;
 
 import baritone.api.utils.BetterBlockPos;
-import net.minecraft.world.phys.Vec3;
-
 import java.util.AbstractList;
 import java.util.Collections;
 import java.util.List;
+import net.minecraft.util.math.Vec3d;
 
 /**
  * @author Brady
@@ -54,9 +53,9 @@ public final class NetherPath extends AbstractList<BetterBlockPos> {
         return this.isEmpty() ? null : this.backing.get(this.backing.size() - 1);
     }
 
-    public Vec3 getVec(int index) {
+    public Vec3d getVec(int index) {
         final BetterBlockPos pos = this.get(index);
-        return new Vec3(pos.x, pos.y, pos.z);
+        return new Vec3d(pos.x, pos.y, pos.z);
     }
 
     public static NetherPath emptyPath() {

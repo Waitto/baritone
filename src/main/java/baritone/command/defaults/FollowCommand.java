@@ -30,13 +30,12 @@ import baritone.api.command.helpers.TabCompleteHelper;
 import java.util.*;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
-import net.minecraft.core.Registry;
-import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.player.Player;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.EntityType;
+import net.minecraft.entity.LivingEntity;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.registry.Registries;
+import net.minecraft.util.Identifier;
 
 public class FollowCommand extends Command {
 
@@ -85,9 +84,9 @@ public class FollowCommand extends Command {
             } else {
                 logDirect("Following these types of entities:");
                 classes.stream()
-                        .map(BuiltInRegistries.ENTITY_TYPE::getKey)
+                        .map(Registries.ENTITY_TYPE::getId)
                         .map(Objects::requireNonNull)
-                        .map(ResourceLocation::toString)
+                        .map(Identifier::toString)
                         .forEach(this::logDirect);
             }
         }
@@ -139,7 +138,7 @@ public class FollowCommand extends Command {
     @KeepName
     private enum FollowGroup {
         ENTITIES(LivingEntity.class::isInstance),
-        PLAYERS(Player.class::isInstance); /* ,
+        PLAYERS(PlayerEntity.class::isInstance); /* ,
         FRIENDLY(entity -> entity.getAttackTarget() != HELPER.mc.player),
         HOSTILE(FRIENDLY.filter.negate()); */
         final Predicate<Entity> filter;

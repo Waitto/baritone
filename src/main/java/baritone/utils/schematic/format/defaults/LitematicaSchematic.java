@@ -20,19 +20,19 @@ package baritone.utils.schematic.format.defaults;
 import baritone.api.schematic.CompositeSchematic;
 import baritone.api.schematic.IStaticSchematic;
 import baritone.utils.schematic.StaticSchematic;
-import net.minecraft.core.Holder;
-import net.minecraft.core.Vec3i;
-import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.ListTag;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.properties.Property;
 import org.apache.commons.lang3.Validate;
 
 import javax.annotation.Nullable;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.Blocks;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtList;
+import net.minecraft.registry.Registries;
+import net.minecraft.registry.entry.RegistryEntry;
+import net.minecraft.state.property.Property;
+import net.minecraft.util.Identifier;
+import net.minecraft.util.math.Vec3i;
 import java.util.Collections;
 import java.util.Optional;
 
@@ -49,7 +49,7 @@ public final class LitematicaSchematic extends CompositeSchematic implements ISt
      * @param nbtTagCompound a decompressed file stream aka nbt data.
      * @param rotated        if the schematic is rotated by 90°.
      */
-    public LitematicaSchematic(CompoundTag nbt) {
+    public LitematicaSchematic(NbtCompound nbt) {
         super(0, 0, 0);
         fillInSchematic(nbt);
     }
@@ -57,10 +57,10 @@ public final class LitematicaSchematic extends CompositeSchematic implements ISt
     /**
      * @return Array of subregion tags.
      */
-    private static CompoundTag[] getRegions(CompoundTag nbt) {
-        return nbt.getCompound("Regions").getAllKeys().stream()
+    private static NbtCompound[] getRegions(NbtCompound nbt) {
+        return nbt.getCompound("Regions").getKeys().stream()
                 .map(nbt.getCompound("Regions")::getCompound)
-                .toArray(CompoundTag[]::new);
+                .toArray(NbtCompound[]::new);
     }
 
     /**
@@ -69,7 +69,7 @@ public final class LitematicaSchematic extends CompositeSchematic implements ISt
      * @param s axis that should be read.
      * @return the lower coord of the requested axis.
      */
-    private static int getMinOfSubregion(CompoundTag subReg, String s) {
+    private static int getMinOfSubregion(NbtCompound subReg, String s) {
         int a = subReg.getCompound("Position").getInt(s);
         int b = subReg.getCompound("Size").getInt(s);
         return Math.min(a, a + b + 1);
@@ -79,18 +79,18 @@ public final class LitematicaSchematic extends CompositeSchematic implements ISt
      * @param blockStatePalette List of all different block types used in the schematic.
      * @return Array of BlockStates.
      */
-    private static BlockState[] getBlockList(ListTag blockStatePalette) {
+    private static BlockState[] getBlockList(NbtList blockStatePalette) {
         BlockState[] blockList = new BlockState[blockStatePalette.size()];
 
         for (int i = 0; i < blockStatePalette.size(); i++) {
-            CompoundTag tag = (CompoundTag) blockStatePalette.get(i);
-            ResourceLocation blockKey = ResourceLocation.tryParse(tag.getString("Name"));
+            NbtCompound tag = (NbtCompound) blockStatePalette.get(i);
+            Identifier blockKey = Identifier.tryParse(tag.getString("Name"));
             Block block = blockKey == null
                 ? Blocks.AIR
-                : BuiltInRegistries.BLOCK.get(blockKey)
-                    .map(Holder.Reference::value)
+                : Registries.BLOCK.getEntry(blockKey)
+                    .map(RegistryEntry.Reference::value)
                     .orElse(Blocks.AIR);
-            CompoundTag properties = tag.getCompound("Properties");
+            NbtCompound properties = tag.getCompound("Properties");
 
             blockList[i] = getBlockState(block, properties);
         }
@@ -102,11 +102,11 @@ public final class LitematicaSchematic extends CompositeSchematic implements ISt
      * @param properties List of Properties the block has.
      * @return A blockState.
      */
-    private static BlockState getBlockState(Block block, CompoundTag properties) {
-        BlockState blockState = block.defaultBlockState();
+    private static BlockState getBlockState(Block block, NbtCompound properties) {
+        BlockState blockState = block.getDefaultState();
 
-        for (Object key : properties.getAllKeys()) {
-            Property<?> property = block.getStateDefinition().getProperty((String) key);
+        for (Object key : properties.getKeys()) {
+            Property<?> property = block.getStateManager().getProperty((String) key);
             String propertyValue = properties.getString((String) key);
             if (property != null) {
                 blockState = setPropertyValue(blockState, property, propertyValue);
@@ -119,9 +119,9 @@ public final class LitematicaSchematic extends CompositeSchematic implements ISt
      * @author Emerson
      */
     private static <T extends Comparable<T>> BlockState setPropertyValue(BlockState state, Property<T> property, String value) {
-        Optional<T> parsed = property.getValue(value);
+        Optional<T> parsed = property.parse(value);
         if (parsed.isPresent()) {
-            return state.setValue(property, parsed.get());
+            return state.with(property, parsed.get());
         } else {
             throw new IllegalArgumentException("Invalid value for property " + property);
         }
@@ -141,8 +141,8 @@ public final class LitematicaSchematic extends CompositeSchematic implements ISt
      *
      * @return the volume of the subregion.
      */
-    private static long getVolume(CompoundTag subReg) {
-        CompoundTag size = subReg.getCompound("Size");
+    private static long getVolume(NbtCompound subReg) {
+        NbtCompound size = subReg.getCompound("Size");
         return Math.abs(size.getInt("x") * size.getInt("y") * size.getInt("z"));
     }
 
@@ -150,9 +150,9 @@ public final class LitematicaSchematic extends CompositeSchematic implements ISt
      * @param s axis.
      * @return the lowest coordinate of that axis of the schematic.
      */
-    private static int getMinOfSchematic(CompoundTag nbt, String s) {
+    private static int getMinOfSchematic(NbtCompound nbt, String s) {
         int n = Integer.MAX_VALUE;
-        for (CompoundTag subReg : getRegions(nbt)) {
+        for (NbtCompound subReg : getRegions(nbt)) {
             n = Math.min(n, getMinOfSubregion(subReg, s));
         }
         return n;
@@ -161,10 +161,10 @@ public final class LitematicaSchematic extends CompositeSchematic implements ISt
     /**
      * reads the file data.
      */
-    private void fillInSchematic(CompoundTag nbt) {
+    private void fillInSchematic(NbtCompound nbt) {
         Vec3i offsetMinCorner = new Vec3i(getMinOfSchematic(nbt, "x"), getMinOfSchematic(nbt, "y"), getMinOfSchematic(nbt, "z"));
-        for (CompoundTag subReg : getRegions(nbt)) {
-            ListTag usedBlockTypes = subReg.getList("BlockStatePalette", 10);
+        for (NbtCompound subReg : getRegions(nbt)) {
+            NbtList usedBlockTypes = subReg.getList("BlockStatePalette", 10);
             BlockState[] blockList = getBlockList(usedBlockTypes);
 
             int bitsPerBlock = getBitsPerBlock(usedBlockTypes.size());
@@ -182,11 +182,11 @@ public final class LitematicaSchematic extends CompositeSchematic implements ISt
      * @param blockList list with the different block types used in the schematic.
      * @param bitArray  bit array that holds the placement pattern.
      */
-    private void writeSubregionIntoSchematic(CompoundTag subReg, Vec3i offsetMinCorner, BlockState[] blockList, LitematicaBitArray bitArray) {
+    private void writeSubregionIntoSchematic(NbtCompound subReg, Vec3i offsetMinCorner, BlockState[] blockList, LitematicaBitArray bitArray) {
         int offsetX = getMinOfSubregion(subReg, "x") - offsetMinCorner.getX();
         int offsetY = getMinOfSubregion(subReg, "y") - offsetMinCorner.getY();
         int offsetZ = getMinOfSubregion(subReg, "z") - offsetMinCorner.getZ();
-        CompoundTag size = subReg.getCompound("Size");
+        NbtCompound size = subReg.getCompound("Size");
         int sizeX = Math.abs(size.getInt("x"));
         int sizeY = Math.abs(size.getInt("y"));
         int sizeZ = Math.abs(size.getInt("z"));

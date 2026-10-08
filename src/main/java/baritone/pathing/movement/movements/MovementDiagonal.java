@@ -29,47 +29,46 @@ import baritone.pathing.movement.MovementState;
 import baritone.utils.BlockStateInterface;
 import baritone.utils.pathing.MutableMoveResult;
 import com.google.common.collect.ImmutableSet;
-import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.core.Vec3i;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.DoorBlock;
-import net.minecraft.world.level.block.HorizontalDirectionalBlock;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.properties.DoorHingeSide;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.Blocks;
+import net.minecraft.block.DoorBlock;
+import net.minecraft.block.HorizontalFacingBlock;
+import net.minecraft.block.enums.DoorHinge;
+import net.minecraft.client.network.ClientPlayerEntity;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Vec3i;
 
 public class MovementDiagonal extends Movement {
 
     private static final double SQRT_2 = Math.sqrt(2);
 
     public MovementDiagonal(IBaritone baritone, BetterBlockPos start, Direction dir1, Direction dir2, int dy) {
-        this(baritone, start, start.relative(dir1), start.relative(dir2), dir2, dy);
+        this(baritone, start, start.offset(dir1), start.offset(dir2), dir2, dy);
         // super(start, start.offset(dir1).offset(dir2), new BlockPos[]{start.offset(dir1), start.offset(dir1).up(), start.offset(dir2), start.offset(dir2).up(), start.offset(dir1).offset(dir2), start.offset(dir1).offset(dir2).up()}, new BlockPos[]{start.offset(dir1).offset(dir2).down()});
     }
 
     private MovementDiagonal(IBaritone baritone, BetterBlockPos start, BetterBlockPos dir1, BetterBlockPos dir2, Direction drr2, int dy) {
-        this(baritone, start, dir1.relative(drr2).above(dy), dir1, dir2);
+        this(baritone, start, dir1.offset(drr2).up(dy), dir1, dir2);
     }
 
     private MovementDiagonal(IBaritone baritone, BetterBlockPos start, BetterBlockPos end, BetterBlockPos dir1, BetterBlockPos dir2) {
-        super(baritone, start, end, new BetterBlockPos[]{dir1, dir1.above(), dir2, dir2.above(), end, end.above()});
+        super(baritone, start, end, new BetterBlockPos[]{dir1, dir1.up(), dir2, dir2.up(), end, end.up()});
     }
 
     @Override
     protected boolean safeToCancel(MovementState state) {
         //too simple. backfill does not work after cornering with this
         //return context.precomputedData.canWalkOn(ctx, ctx.playerFeet().down());
-        LocalPlayer player = ctx.player();
+        ClientPlayerEntity player = ctx.player();
         double offset = 0.25;
-        double x = player.position().x;
-        double y = player.position().y - 1;
-        double z = player.position().z;
+        double x = player.getPos().x;
+        double y = player.getPos().y - 1;
+        double z = player.getPos().z;
         //standard
         if (ctx.playerFeet().equals(src)) {
             return true;
@@ -105,10 +104,10 @@ public class MovementDiagonal extends Movement {
         BetterBlockPos diagA = new BetterBlockPos(src.x, src.y, dest.z);
         BetterBlockPos diagB = new BetterBlockPos(dest.x, src.y, src.z);
         if (dest.y < src.y) {
-            return ImmutableSet.of(src, dest.above(), diagA, diagB, dest, diagA.below(), diagB.below());
+            return ImmutableSet.of(src, dest.up(), diagA, diagB, dest, diagA.down(), diagB.down());
         }
         if (dest.y > src.y) {
-            return ImmutableSet.of(src, src.above(), diagA, diagB, dest, diagA.above(), diagB.above());
+            return ImmutableSet.of(src, src.up(), diagA, diagB, dest, diagA.up(), diagB.up());
         }
         return ImmutableSet.of(src, dest, diagA, diagB);
     }
@@ -151,9 +150,9 @@ public class MovementDiagonal extends Movement {
         }
         double multiplier = WALK_ONE_BLOCK_COST;
         // For either possible soul sand, that affects half of our walking
-        if (destWalkOn.is(Blocks.SOUL_SAND)) {
+        if (destWalkOn.isOf(Blocks.SOUL_SAND)) {
             multiplier += (WALK_ONE_OVER_SOUL_SAND_COST - WALK_ONE_BLOCK_COST) / 2;
-        } else if (context.allowWalkOnMagmaBlocks && destWalkOn.is(Blocks.MAGMA_BLOCK)) {
+        } else if (context.allowWalkOnMagmaBlocks && destWalkOn.isOf(Blocks.MAGMA_BLOCK)) {
             multiplier += (SNEAK_ONE_BLOCK_COST - WALK_ONE_BLOCK_COST) / 2;
             sneaking = true;
         } else if (frostWalker) {
@@ -172,11 +171,11 @@ public class MovementDiagonal extends Movement {
             sneaking = true;
         }
         BlockState cuttingOver1 = context.get(x, y - 1, destZ);
-        if ((!context.allowWalkOnMagmaBlocks && cuttingOver1.is(Blocks.MAGMA_BLOCK)) || MovementHelper.isLava(cuttingOver1)) {
+        if ((!context.allowWalkOnMagmaBlocks && cuttingOver1.isOf(Blocks.MAGMA_BLOCK)) || MovementHelper.isLava(cuttingOver1)) {
             return;
         }
         BlockState cuttingOver2 = context.get(destX, y - 1, z);
-        if ((!context.allowWalkOnMagmaBlocks && cuttingOver2.is(Blocks.MAGMA_BLOCK)) || MovementHelper.isLava(cuttingOver2)) {
+        if ((!context.allowWalkOnMagmaBlocks && cuttingOver2.isOf(Blocks.MAGMA_BLOCK)) || MovementHelper.isLava(cuttingOver2)) {
             return;
         }
         boolean water = false;
@@ -281,7 +280,7 @@ public class MovementDiagonal extends Movement {
 
         if (ctx.playerFeet().equals(dest)) {
             return state.setStatus(MovementStatus.SUCCESS);
-        } else if (!playerInValidPosition() && !(MovementHelper.isLiquid(ctx, src) && getValidPositions().contains(ctx.playerFeet().above()))) {
+        } else if (!playerInValidPosition() && !(MovementHelper.isLiquid(ctx, src) && getValidPositions().contains(ctx.playerFeet().up()))) {
             return state.setStatus(MovementStatus.UNREACHABLE);
         }
 
@@ -298,13 +297,13 @@ public class MovementDiagonal extends Movement {
             return state;
         }
 
-        if (dest.y > src.y && ctx.player().position().y < src.y + 0.1 && ctx.player().horizontalCollision) {
+        if (dest.y > src.y && ctx.player().getPos().y < src.y + 0.1 && ctx.player().horizontalCollision) {
             state.setInput(Input.JUMP, true);
         }
         if (sprint()) {
             state.setInput(Input.SPRINT, true);
         }
-        state.setInput(Input.SNEAK, Baritone.settings().allowWalkOnMagmaBlocks.value && MovementHelper.steppingOnBlocks(ctx).stream().anyMatch(block -> ctx.world().getBlockState(block).is(Blocks.MAGMA_BLOCK)));
+        state.setInput(Input.SNEAK, Baritone.settings().allowWalkOnMagmaBlocks.value && MovementHelper.steppingOnBlocks(ctx).stream().anyMatch(block -> ctx.world().getBlockState(block).isOf(Blocks.MAGMA_BLOCK)));
         MovementHelper.moveTowards(ctx, state, dest);
         return state;
     }
@@ -368,12 +367,12 @@ public class MovementDiagonal extends Movement {
             return false;
         }
 
-        Vec3i offset = state.getValue(HorizontalDirectionalBlock.FACING).getUnitVec3i();
+        Vec3i offset = state.get(HorizontalFacingBlock.FACING).getVector();
         int ox = offset.getX();
         int oz = offset.getZ();
 
         int nbrX, nbrZ;
-        if (state.getValue(DoorBlock.HINGE) == DoorHingeSide.LEFT) {
+        if (state.get(DoorBlock.HINGE) == DoorHinge.LEFT) {
             nbrX = doorX - ox + oz;
             nbrZ = doorZ - oz - ox;
         } else {

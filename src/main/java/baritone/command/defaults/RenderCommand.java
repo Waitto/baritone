@@ -37,13 +37,13 @@ public class RenderCommand extends Command {
     public void execute(String label, IArgConsumer args) throws CommandException {
         args.requireMax(0);
         BetterBlockPos origin = ctx.playerFeet();
-        int renderDistance = (ctx.minecraft().options.renderDistance().get() + 1) * 16;
-        ctx.minecraft().levelRenderer.setBlocksDirty(
+        int renderDistance = (ctx.minecraft().options.getViewDistance().getValue() + 1) * 16;
+        ctx.minecraft().worldRenderer.scheduleBlockRenders(
                 origin.x - renderDistance,
-                ctx.world().getMinY(),
+                ctx.world().getBottomY(),
                 origin.z - renderDistance,
                 origin.x + renderDistance,
-                ctx.world().getMaxY(),
+                ctx.world().getTopYInclusive(),
                 origin.z + renderDistance
         );
         logDirect("Done");

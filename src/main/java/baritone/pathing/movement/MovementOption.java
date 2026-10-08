@@ -18,9 +18,8 @@
 package baritone.pathing.movement;
 
 import baritone.api.utils.input.Input;
-import net.minecraft.util.Mth;
-
 import java.util.stream.Stream;
+import net.minecraft.util.math.MathHelper;
 
 public record MovementOption(Input input1, Input input2, float motionX, float motionZ) {
     private static final float SPRINT_MULTIPLIER = 1.3f;
@@ -39,7 +38,7 @@ public record MovementOption(Input input1, Input input2, float motionX, float mo
     }
 
     public float distanceToSq(float otherX, float otherZ) {
-        return Mth.abs(motionX() - otherX) + Mth.abs(motionZ() - otherZ);
+        return MathHelper.abs(motionX() - otherX) + MathHelper.abs(motionZ() - otherZ);
     }
     
     public static Stream<MovementOption> getOptions(float motionX, float motionZ, boolean canSprint) {

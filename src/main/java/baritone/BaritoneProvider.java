@@ -26,11 +26,10 @@ import baritone.cache.FasterWorldScanner;
 import baritone.command.CommandSystem;
 import baritone.command.ExampleBaritoneControl;
 import baritone.utils.schematic.SchematicSystem;
-import net.minecraft.client.Minecraft;
-
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
+import net.minecraft.client.MinecraftClient;
 
 /**
  * @author Brady
@@ -46,7 +45,7 @@ public final class BaritoneProvider implements IBaritoneProvider {
         this.allView = Collections.unmodifiableList(this.all);
 
         // Setup chat control, just for the primary instance
-        final Baritone primary = (Baritone) this.createBaritone(Minecraft.getInstance());
+        final Baritone primary = (Baritone) this.createBaritone(MinecraftClient.getInstance());
         primary.registerBehavior(ExampleBaritoneControl::new);
     }
 
@@ -61,7 +60,7 @@ public final class BaritoneProvider implements IBaritoneProvider {
     }
 
     @Override
-    public synchronized IBaritone createBaritone(Minecraft minecraft) {
+    public synchronized IBaritone createBaritone(MinecraftClient minecraft) {
         IBaritone baritone = this.getBaritoneForMinecraft(minecraft);
         if (baritone == null) {
             this.all.add(baritone = new Baritone(minecraft));

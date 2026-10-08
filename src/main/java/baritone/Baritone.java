@@ -36,8 +36,6 @@ import baritone.utils.GuiClick;
 import baritone.utils.InputOverrideHandler;
 import baritone.utils.PathingControlManager;
 import baritone.utils.player.BaritonePlayerContext;
-import net.minecraft.client.Minecraft;
-
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -50,6 +48,7 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
+import net.minecraft.client.MinecraftClient;
 
 /**
  * @author Brady
@@ -77,7 +76,7 @@ public class Baritone implements IBaritone {
         });
     }
 
-    private final Minecraft mc;
+    private final MinecraftClient mc;
     private final Path directory;
 
     private final GameEventHandler gameEventHandler;
@@ -106,11 +105,11 @@ public class Baritone implements IBaritone {
 
     public BlockStateInterface bsi;
 
-    Baritone(Minecraft mc) {
+    Baritone(MinecraftClient mc) {
         this.mc = mc;
         this.gameEventHandler = new GameEventHandler(this);
 
-        this.directory = mc.gameDirectory.toPath().resolve("baritone");
+        this.directory = mc.runDirectory.toPath().resolve("baritone");
         if (!Files.exists(this.directory)) {
             try {
                 Files.createDirectories(this.directory);

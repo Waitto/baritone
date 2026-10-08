@@ -19,8 +19,6 @@ package baritone.process.elytra.pathfinder;
 
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongSet;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -30,6 +28,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ForkJoinTask;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
 
 /**
  * A* over cubes of the chunk octrees, as the native PathFinder.cpp had it. A node is a cube of 2
@@ -304,9 +304,9 @@ final class PathFinder {
             }
 
             for (Direction face : ALL_FACES) {
-                final int nx = x + face.getStepX() * w;
-                final int ny = y + face.getStepY() * w;
-                final int nz = z + face.getStepZ() * w;
+                final int nx = x + face.getOffsetX() * w;
+                final int ny = y + face.getOffsetY() * w;
+                final int nz = z + face.getOffsetZ() * w;
                 if (face == Direction.UP || face == Direction.DOWN) {
                     if (!isInBounds(ctx.maxHeight, ny)) continue;
                 }

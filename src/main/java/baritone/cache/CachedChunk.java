@@ -21,17 +21,16 @@ import baritone.api.utils.BlockUtils;
 import baritone.utils.pathing.PathingBlockType;
 import com.google.common.collect.ImmutableSet;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
-import net.minecraft.core.BlockPos;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.dimension.DimensionType;
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.BitSet;
 import java.util.List;
 import java.util.Map;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.Blocks;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.dimension.DimensionType;
 
 /**
  * @author Brady
@@ -210,20 +209,20 @@ public final class CachedChunk {
         if (special != null) {
             String str = special.get(index);
             if (str != null) {
-                return BlockUtils.stringToBlockRequired(str).defaultBlockState();
+                return BlockUtils.stringToBlockRequired(str).getDefaultState();
             }
         }
 
         if (type == PathingBlockType.SOLID) {
             if (y == dimension.logicalHeight() - 1 && dimension.hasCeiling()) {
                 // nether roof is always unbreakable
-                return Blocks.BEDROCK.defaultBlockState();
+                return Blocks.BEDROCK.getDefaultState();
             }
             if (y < -59 && dimension.natural()) {
                 // solid blocks below 5 are commonly bedrock
                 // however, returning bedrock always would be a little yikes
                 // discourage paths that include breaking blocks below 5 a little more heavily just so that it takes paths breaking what's known to be stone (at 5 or above) instead of what could maybe be bedrock (below 5)
-                return Blocks.OBSIDIAN.defaultBlockState();
+                return Blocks.OBSIDIAN.getDefaultState();
             }
         }
         return ChunkPacker.pathingTypeToBlock(type, dimension);

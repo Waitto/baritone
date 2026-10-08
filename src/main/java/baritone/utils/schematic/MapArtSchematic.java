@@ -21,8 +21,8 @@ import baritone.api.schematic.IStaticSchematic;
 import baritone.api.schematic.MaskSchematic;
 import java.util.OptionalInt;
 import java.util.function.Predicate;
-import net.minecraft.world.level.block.AirBlock;
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.block.AirBlock;
+import net.minecraft.block.BlockState;
 
 public class MapArtSchematic extends MaskSchematic {
 

@@ -2,9 +2,9 @@ package baritone.selection;
 
 import baritone.api.selection.ISelection;
 import baritone.api.utils.BetterBlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.core.Vec3i;
-import net.minecraft.world.phys.AABB;
+import net.minecraft.util.math.Box;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Vec3i;
 
 public class Selection implements ISelection {
 
@@ -13,7 +13,7 @@ public class Selection implements ISelection {
     private final BetterBlockPos min;
     private final BetterBlockPos max;
     private final Vec3i size;
-    private final AABB aabb;
+    private final Box aabb;
 
     public Selection(BetterBlockPos pos1, BetterBlockPos pos2) {
         this.pos1 = pos1;
@@ -37,7 +37,7 @@ public class Selection implements ISelection {
                 max.z - min.z + 1
         );
 
-        this.aabb = new AABB(min.x, min.y, min.z, max.x + 1, max.y + 1, max.z + 1);
+        this.aabb = new Box(min.x, min.y, min.z, max.x + 1, max.y + 1, max.z + 1);
     }
 
     @Override
@@ -66,7 +66,7 @@ public class Selection implements ISelection {
     }
 
     @Override
-    public AABB aabb() {
+    public Box aabb() {
         return aabb;
     }
 
@@ -91,7 +91,7 @@ public class Selection implements ISelection {
      * else if they're both at the same position on that axis (it really doesn't matter)
      */
     private boolean isPos2(Direction facing) {
-        boolean negative = facing.getAxisDirection().getStep() < 0;
+        boolean negative = facing.getDirection().offset() < 0;
 
         switch (facing.getAxis()) {
             case X:
@@ -108,23 +108,23 @@ public class Selection implements ISelection {
     @Override
     public ISelection expand(Direction direction, int blocks) {
         if (isPos2(direction)) {
-            return new Selection(pos1, pos2.relative(direction, blocks));
+            return new Selection(pos1, pos2.offset(direction, blocks));
         } else {
-            return new Selection(pos1.relative(direction, blocks), pos2);
+            return new Selection(pos1.offset(direction, blocks), pos2);
         }
     }
 
     @Override
     public ISelection contract(Direction direction, int blocks) {
         if (isPos2(direction)) {
-            return new Selection(pos1.relative(direction, blocks), pos2);
+            return new Selection(pos1.offset(direction, blocks), pos2);
         } else {
-            return new Selection(pos1, pos2.relative(direction, blocks));
+            return new Selection(pos1, pos2.offset(direction, blocks));
         }
     }
 
     @Override
     public ISelection shift(Direction direction, int blocks) {
-        return new Selection(pos1.relative(direction, blocks), pos2.relative(direction, blocks));
+        return new Selection(pos1.offset(direction, blocks), pos2.offset(direction, blocks));
     }
 }

@@ -20,11 +20,11 @@ package baritone.utils.player;
 import baritone.Baritone;
 import baritone.api.cache.IWorldData;
 import baritone.api.utils.*;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.phys.HitResult;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.network.ClientPlayerEntity;
+import net.minecraft.entity.Entity;
+import net.minecraft.util.hit.HitResult;
+import net.minecraft.world.World;
 
 /**
  * Implementation of {@link IPlayerContext} that provides information about the primary player.
@@ -35,22 +35,22 @@ import net.minecraft.world.phys.HitResult;
 public final class BaritonePlayerContext implements IPlayerContext {
 
     private final Baritone baritone;
-    private final Minecraft mc;
+    private final MinecraftClient mc;
     private final IPlayerController playerController;
 
-    public BaritonePlayerContext(Baritone baritone, Minecraft mc) {
+    public BaritonePlayerContext(Baritone baritone, MinecraftClient mc) {
         this.baritone = baritone;
         this.mc = mc;
         this.playerController = new BaritonePlayerController(mc);
     }
 
     @Override
-    public Minecraft minecraft() {
+    public MinecraftClient minecraft() {
         return this.mc;
     }
 
     @Override
-    public LocalPlayer player() {
+    public ClientPlayerEntity player() {
         return this.mc.player;
     }
 
@@ -60,8 +60,8 @@ public final class BaritonePlayerContext implements IPlayerContext {
     }
 
     @Override
-    public Level world() {
-        return this.mc.level;
+    public World world() {
+        return this.mc.world;
     }
 
     @Override
@@ -72,7 +72,7 @@ public final class BaritonePlayerContext implements IPlayerContext {
     @Override
     public BetterBlockPos viewerPos() {
         final Entity entity = this.mc.getCameraEntity();
-        return entity == null ? this.playerFeet() : BetterBlockPos.from(entity.blockPosition());
+        return entity == null ? this.playerFeet() : BetterBlockPos.from(entity.getBlockPos());
     }
 
     @Override

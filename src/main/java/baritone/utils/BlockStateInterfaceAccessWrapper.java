@@ -18,18 +18,18 @@
 package baritone.utils;
 
 import javax.annotation.Nullable;
-import net.minecraft.core.BlockPos;
-import net.minecraft.world.level.BlockGetter;
-import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.material.FluidState;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.fluid.FluidState;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.BlockView;
 
 /**
  * @author Brady
  * @since 11/5/2019
  */
 @SuppressWarnings("NullableProblems")
-public final class BlockStateInterfaceAccessWrapper implements BlockGetter {
+public final class BlockStateInterfaceAccessWrapper implements BlockView {
 
     private final BlockStateInterface bsi;
 
@@ -60,8 +60,8 @@ public final class BlockStateInterfaceAccessWrapper implements BlockGetter {
     }
 
     @Override
-    public int getMinY() {
-        return bsi.world.getMinY();
+    public int getBottomY() {
+        return bsi.world.getBottomY();
     }
 
 }

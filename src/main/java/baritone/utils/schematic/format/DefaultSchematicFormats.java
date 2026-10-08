@@ -22,9 +22,9 @@ import baritone.api.schematic.format.ISchematicFormat;
 import baritone.utils.schematic.format.defaults.LitematicaSchematic;
 import baritone.utils.schematic.format.defaults.MCEditSchematic;
 import baritone.utils.schematic.format.defaults.SpongeSchematic;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.NbtAccounter;
+import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtIo;
+import net.minecraft.nbt.NbtSizeTracker;
 import org.apache.commons.io.FilenameUtils;
 
 import java.io.File;
@@ -47,7 +47,7 @@ public enum DefaultSchematicFormats implements ISchematicFormat {
     MCEDIT("schematic") {
         @Override
         public IStaticSchematic parse(InputStream input) throws IOException {
-            return new MCEditSchematic(NbtIo.readCompressed(input, NbtAccounter.unlimitedHeap()));
+            return new MCEditSchematic(NbtIo.readCompressed(input, NbtSizeTracker.ofUnlimitedBytes()));
         }
     },
 
@@ -59,7 +59,7 @@ public enum DefaultSchematicFormats implements ISchematicFormat {
     SPONGE("schem") {
         @Override
         public IStaticSchematic parse(InputStream input) throws IOException {
-            CompoundTag nbt = NbtIo.readCompressed(input, NbtAccounter.unlimitedHeap());
+            NbtCompound nbt = NbtIo.readCompressed(input, NbtSizeTracker.ofUnlimitedBytes());
             int version = nbt.getInt("Version");
             switch (version) {
                 case 1:
@@ -77,7 +77,7 @@ public enum DefaultSchematicFormats implements ISchematicFormat {
     LITEMATICA("litematic") {
         @Override
         public IStaticSchematic parse(InputStream input) throws IOException {
-            CompoundTag nbt = NbtIo.readCompressed(input, NbtAccounter.unlimitedHeap());
+            NbtCompound nbt = NbtIo.readCompressed(input, NbtSizeTracker.ofUnlimitedBytes());
             int version = nbt.getInt("Version");
             switch (version) {
                 case 4: //1.12

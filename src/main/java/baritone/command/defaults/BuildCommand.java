@@ -41,7 +41,7 @@ public class BuildCommand extends Command {
 
     public BuildCommand(IBaritone baritone) {
         super(baritone, "build");
-        this.schematicsDir = new File(baritone.getPlayerContext().minecraft().gameDirectory, "schematics");
+        this.schematicsDir = new File(baritone.getPlayerContext().minecraft().runDirectory, "schematics");
     }
 
     @Override

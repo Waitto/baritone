@@ -26,9 +26,9 @@ import baritone.pathing.movement.MovementHelper;
 import baritone.pathing.movement.MovementState;
 import com.google.common.collect.ImmutableSet;
 import java.util.Set;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.Blocks;
 
 public class MovementDownward extends Movement {
 
@@ -83,8 +83,8 @@ public class MovementDownward extends Movement {
         } else if (!playerInValidPosition()) {
             return state.setStatus(MovementStatus.UNREACHABLE);
         }
-        double diffX = ctx.player().position().x - (dest.getX() + 0.5);
-        double diffZ = ctx.player().position().z - (dest.getZ() + 0.5);
+        double diffX = ctx.player().getPos().x - (dest.getX() + 0.5);
+        double diffZ = ctx.player().getPos().z - (dest.getZ() + 0.5);
         double ab = Math.sqrt(diffX * diffX + diffZ * diffZ);
 
         if (numTicks++ < 10 && ab < 0.2) {

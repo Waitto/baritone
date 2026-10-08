@@ -18,15 +18,14 @@
 package baritone.utils.schematic.format.defaults;
 
 import baritone.utils.schematic.StaticSchematic;
-import net.minecraft.core.Holder;
-import net.minecraft.core.Registry;
-import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.util.datafix.fixes.ItemIdFix;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.Blocks;
+import net.minecraft.datafixer.fix.ItemIdFix;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.registry.Registries;
+import net.minecraft.registry.entry.RegistryEntry;
+import net.minecraft.util.Identifier;
 
 /**
  * @author Brady
@@ -34,7 +33,7 @@ import net.minecraft.world.level.block.state.BlockState;
  */
 public final class MCEditSchematic extends StaticSchematic {
 
-    public MCEditSchematic(CompoundTag schematic) {
+    public MCEditSchematic(NbtCompound schematic) {
         String type = schematic.getString("Materials");
         if (!type.equals("Alpha")) {
             throw new IllegalStateException("bad schematic " + type);
@@ -65,16 +64,16 @@ public final class MCEditSchematic extends StaticSchematic {
                         // additional is 0 through 15 inclusive since it's & 0xF above
                         blockID |= additional[blockInd] << 8;
                     }
-                    ResourceLocation blockKey = ResourceLocation.tryParse(ItemIdFix.getItem(blockID));
+                    Identifier blockKey = Identifier.tryParse(ItemIdFix.fromId(blockID));
                     Block block = blockKey == null
                         ? Blocks.AIR
-                        : BuiltInRegistries.BLOCK.get(blockKey)
-                            .map(Holder.Reference::value)
+                        : Registries.BLOCK.getEntry(blockKey)
+                            .map(RegistryEntry.Reference::value)
                             .orElse(Blocks.AIR);
 
 //                    int meta = metadata[blockInd] & 0xFF;
 //                    this.states[x][z][y] = block.getStateFromMeta(meta);
-                    this.states[x][z][y] = block.defaultBlockState();
+                    this.states[x][z][y] = block.getDefaultState();
                 }
             }
         }

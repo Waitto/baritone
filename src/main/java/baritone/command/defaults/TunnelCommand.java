@@ -26,8 +26,8 @@ import baritone.api.pathing.goals.GoalStrictDirection;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Stream;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
 
 public class TunnelCommand extends Command {
 
@@ -44,7 +44,7 @@ public class TunnelCommand extends Command {
             int width = args.getAs(Integer.class);
             int depth = args.getAs(Integer.class);
 
-            if (width < 1 || height < 2 || depth < 1 || height > ctx.world().getMaxY()){
+            if (width < 1 || height < 2 || depth < 1 || height > ctx.world().getTopYInclusive()){
                 logDirect("Width and depth must at least be 1 block; Height must at least be 2 blocks, and cannot be greater than the build limit.");
                 cont = false;
             }
@@ -54,7 +54,7 @@ public class TunnelCommand extends Command {
                 width--;
                 BlockPos corner1;
                 BlockPos corner2;
-                Direction enumFacing = ctx.player().getDirection();
+                Direction enumFacing = ctx.player().getHorizontalFacing();
                 int addition = ((width % 2 == 0) ? 0 : 1);
                 switch (enumFacing) {
                     case EAST:
@@ -82,7 +82,7 @@ public class TunnelCommand extends Command {
         } else {
             Goal goal = new GoalStrictDirection(
                     ctx.playerFeet(),
-                    ctx.player().getDirection()
+                    ctx.player().getHorizontalFacing()
             );
             baritone.getCustomGoalProcess().setGoalAndPath(goal);
             logDirect(String.format("Goal: %s", goal.toString()));

@@ -25,15 +25,14 @@ import baritone.api.utils.Rotation;
 import baritone.pathing.movement.Movement;
 import baritone.pathing.movement.MovementHelper;
 import baritone.pathing.movement.movements.*;
-import net.minecraft.core.BlockPos;
-import net.minecraft.world.effect.MobEffects;
-import net.minecraft.world.entity.ai.attributes.Attributes;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.Vec3;
-
 import java.util.Arrays;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.Blocks;
+import net.minecraft.entity.attribute.EntityAttributes;
+import net.minecraft.entity.effect.StatusEffects;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Vec3d;
 
 /**
  * One sprint jump along a straight run of path, simulated tick by tick the same way LivingEntity does it
@@ -66,19 +65,19 @@ final class SprintJump {
     }
 
     static SprintJump plan(IPlayerContext ctx, IPath path, int pathPosition) {
-        Player player = ctx.player();
+        PlayerEntity player = ctx.player();
         BetterBlockPos start = path.positions().get(pathPosition);
         BlockPos dir = path.movements().get(pathPosition).getDirection();
         boolean diagonal = dir.getX() != 0 && dir.getZ() != 0;
         // the sim knows nothing about potions or modded physics, and jump boost off a hill is how you break your legs.
         // the head tops out at y + 3.05, so y + 3 has to be clear. a ceiling at y + 2 is a head hitter, not ours
-        if (!player.onGround() || !player.isSprinting() || player.isInWater() || player.isInLava() || player.onClimbable()
+        if (!player.isOnGround() || !player.isSprinting() || player.isTouchingWater() || player.isInLava() || player.isClimbing()
                 || !ctx.playerFeet().equals(start) || Math.abs(player.getY() - start.y) > 1e-3
                 || diagonal && !Baritone.settings().sprintJumpingDiagonals.value
-                || player.hasEffect(MobEffects.JUMP) || player.hasEffect(MobEffects.SLOW_FALLING) || player.hasEffect(MobEffects.LEVITATION)
-                || Math.abs(player.getAttributeValue(Attributes.JUMP_STRENGTH) - JUMP) > EPS || player.getAttributeValue(Attributes.GRAVITY) != GRAVITY
-                || player.getAttributeValue(Attributes.SAFE_FALL_DISTANCE) < SAFE_FALL
-                || !solidFloor(ctx, start.below()) || !clear(ctx, start.x, start.y, start.z, start.y + 3)) {
+                || player.hasStatusEffect(StatusEffects.JUMP_BOOST) || player.hasStatusEffect(StatusEffects.SLOW_FALLING) || player.hasStatusEffect(StatusEffects.LEVITATION)
+                || Math.abs(player.getAttributeValue(EntityAttributes.JUMP_STRENGTH) - JUMP) > EPS || player.getAttributeValue(EntityAttributes.GRAVITY) != GRAVITY
+                || player.getAttributeValue(EntityAttributes.SAFE_FALL_DISTANCE) < SAFE_FALL
+                || !solidFloor(ctx, start.down()) || !clear(ctx, start.x, start.y, start.z, start.y + 3)) {
             return null;
         }
         double[] floors = new double[MAX_RUNWAY + 1];
@@ -94,7 +93,7 @@ final class SprintJump {
             // on a diagonal the hitbox corners sweep through both side cells, and drift can land us in one
             if (!walking || dest.x - src.x != dir.getX() || dest.z - src.z != dir.getZ()
                     || m.toBreakCached == null || !m.toBreakCached.isEmpty() || m.toPlaceCached == null || !m.toPlaceCached.isEmpty()
-                    || !solidFloor(ctx, dest.below()) || !clear(ctx, dest.x, dest.y, dest.z, top)
+                    || !solidFloor(ctx, dest.down()) || !clear(ctx, dest.x, dest.y, dest.z, top)
                     || diagonal && !(side(ctx, src.x + dir.getX(), src.y, src.z, top) && side(ctx, src.x, src.y, src.z + dir.getZ(), top))) {
                 break;
             }
@@ -102,14 +101,14 @@ final class SprintJump {
         }
         double spacing = diagonal ? Math.sqrt(2) : 1;
         // solidFloor pins friction to 0.6, so the 0.216 / f^3 in the ground acceleration is 1
-        SprintJump jump = new SprintJump(Arrays.copyOf(floors, n), spacing, player.getSpeed() * 0.98);
+        SprintJump jump = new SprintJump(Arrays.copyOf(floors, n), spacing, player.getMovementSpeed() * 0.98);
         jump.originX = start.x + 0.5;
         jump.originZ = start.z + 0.5;
         jump.takeoffY = start.y;
         jump.ux = dir.getX() / spacing;
         jump.uz = dir.getZ() / spacing;
-        Vec3 pos = player.position().subtract(jump.originX, 0, jump.originZ);
-        Vec3 vel = player.getDeltaMovement();
+        Vec3d pos = player.getPos().subtract(jump.originX, 0, jump.originZ);
+        Vec3d vel = player.getVelocity();
         // drifting sideways is how you clip a corner
         if (n < 3 || Math.abs(jump.across(pos)) > 0.2 || Math.abs(jump.across(vel)) > 0.08) {
             return null;
@@ -125,8 +124,8 @@ final class SprintJump {
     private static boolean solidFloor(IPlayerContext ctx, BlockPos pos) {
         BlockState state = ctx.world().getBlockState(pos);
         // ice/slime change friction, soul sand/honey/farmland aren't full height, and hopping on magma without sneaking hurts
-        return state.getBlock().getFriction() == 0.6F && state.getBlock().getSpeedFactor() == 1.0F && state.getBlock().getJumpFactor() == 1.0F
-                && !state.is(Blocks.MAGMA_BLOCK) && state.isCollisionShapeFullBlock(ctx.world(), pos);
+        return state.getBlock().getSlipperiness() == 0.6F && state.getBlock().getVelocityMultiplier() == 1.0F && state.getBlock().getJumpVelocityMultiplier() == 1.0F
+                && !state.isOf(Blocks.MAGMA_BLOCK) && state.isFullCube(ctx.world(), pos);
     }
 
     private static boolean side(IPlayerContext ctx, int x, int y, int z, int top) {
@@ -142,11 +141,11 @@ final class SprintJump {
         return true;
     }
 
-    private double along(Vec3 vec) {
+    private double along(Vec3d vec) {
         return vec.x * ux + vec.z * uz;
     }
 
-    private double across(Vec3 vec) {
+    private double across(Vec3d vec) {
         return vec.z * ux - vec.x * uz;
     }
 
@@ -294,8 +293,8 @@ final class SprintJump {
      * tilted to kill sideways drift
      */
     Rotation steer(IPlayerContext ctx) {
-        Vec3 pos = ctx.player().position().subtract(originX, 0, originZ);
-        Vec3 vel = ctx.player().getDeltaMovement();
+        Vec3d pos = ctx.player().getPos().subtract(originX, 0, originZ);
+        Vec3d vel = ctx.player().getVelocity();
         int throttle = 1;
         double accel = JUMP_BOOST + groundAccel;
         if (ticks++ > 0) {

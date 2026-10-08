@@ -20,22 +20,21 @@ package baritone.cache;
 import baritone.api.utils.BlockUtils;
 import baritone.pathing.movement.MovementHelper;
 import baritone.utils.pathing.PathingBlockType;
-import net.minecraft.core.BlockPos;
-import net.minecraft.world.level.block.AirBlock;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.DoublePlantBlock;
-import net.minecraft.world.level.block.FlowerBlock;
-import net.minecraft.world.level.block.TallGrassBlock;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.chunk.LevelChunk;
-import net.minecraft.world.level.chunk.LevelChunkSection;
-import net.minecraft.world.level.chunk.PalettedContainer;
-import net.minecraft.world.level.dimension.BuiltinDimensionTypes;
-import net.minecraft.world.level.dimension.DimensionType;
-import net.minecraft.world.phys.Vec3;
-
 import java.util.*;
+import net.minecraft.block.AirBlock;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.Blocks;
+import net.minecraft.block.FlowerBlock;
+import net.minecraft.block.ShortPlantBlock;
+import net.minecraft.block.TallPlantBlock;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.chunk.ChunkSection;
+import net.minecraft.world.chunk.PalettedContainer;
+import net.minecraft.world.chunk.WorldChunk;
+import net.minecraft.world.dimension.DimensionType;
+import net.minecraft.world.dimension.DimensionTypes;
 
 import static baritone.utils.BlockStateInterface.getFromChunk;
 
@@ -47,19 +46,19 @@ public final class ChunkPacker {
 
     private ChunkPacker() {}
 
-    public static CachedChunk pack(LevelChunk chunk) {
+    public static CachedChunk pack(WorldChunk chunk) {
         //long start = System.nanoTime() / 1000000L;
 
         Map<String, List<BlockPos>> specialBlocks = new HashMap<>();
-        final int height = chunk.getLevel().dimensionType().height();
+        final int height = chunk.getWorld().getDimension().height();
         BitSet bitSet = new BitSet(CachedChunk.size(height));
         // this goes through the level and a Holder every time, and we used to ask for it twice per block
-        final int minY = chunk.getMinY();
+        final int minY = chunk.getBottomY();
         try {
-            LevelChunkSection[] chunkInternalStorageArray = chunk.getSections();
+            ChunkSection[] chunkInternalStorageArray = chunk.getSectionArray();
             for (int y0 = 0; y0 < height / 16; y0++) {
-                LevelChunkSection extendedblockstorage = chunkInternalStorageArray[y0];
-                if (extendedblockstorage == null || extendedblockstorage.hasOnlyAir()) {
+                ChunkSection extendedblockstorage = chunkInternalStorageArray[y0];
+                if (extendedblockstorage == null || extendedblockstorage.isEmpty()) {
                     // any 16x16x16 area that's all air can be skipped entirely
                     // for example, in an ocean biome, with air from y=64 to y=320
                     // the first few sections are full and everything above is air
@@ -73,7 +72,7 @@ public final class ChunkPacker {
                     // ~14 empty sections in a normal overworld chunk, twice per chunk (load and unload)
                     continue;
                 }
-                PalettedContainer<BlockState> bsc = extendedblockstorage.getStates();
+                PalettedContainer<BlockState> bsc = extendedblockstorage.getBlockStateContainer();
                 int yReal = y0 << 4;
                 // the mapping of BlockStateContainer.getIndex from xyz to index is y << 8 | z << 4 | x;
                 // for better cache locality, iterate in that order
@@ -114,14 +113,14 @@ public final class ChunkPacker {
                         continue https;
                     }
                 }
-                blocks[z << 4 | x] = Blocks.AIR.defaultBlockState();
+                blocks[z << 4 | x] = Blocks.AIR.getDefaultState();
             }
         }
         // @formatter:on
         return new CachedChunk(chunk.getPos().x, chunk.getPos().z, height, bitSet, blocks, specialBlocks, System.currentTimeMillis());
     }
 
-    private static PathingBlockType getPathingBlockType(BlockState state, LevelChunk chunk, int x, int y, int z) {
+    private static PathingBlockType getPathingBlockType(BlockState state, WorldChunk chunk, int x, int y, int z) {
         Block block = state.getBlock();
         if (MovementHelper.isWater(state)) {
             // only water source blocks are plausibly usable, flowing water should be avoid
@@ -129,7 +128,7 @@ public final class ChunkPacker {
             if (MovementHelper.possiblyFlowing(state)) {
                 return PathingBlockType.AVOID;
             }
-            int adjY = y - chunk.getLevel().dimensionType().minY();
+            int adjY = y - chunk.getWorld().getDimension().minY();
             if (
                     (x != 15 && MovementHelper.possiblyFlowing(getFromChunk(chunk, x + 1, adjY, z)))
                             || (x != 0 && MovementHelper.possiblyFlowing(getFromChunk(chunk, x - 1, adjY, z)))
@@ -139,7 +138,7 @@ public final class ChunkPacker {
                 return PathingBlockType.AVOID;
             }
             if (x == 0 || x == 15 || z == 0 || z == 15) {
-                Vec3 flow = state.getFluidState().getFlow(chunk.getLevel(), new BlockPos(x + (chunk.getPos().x << 4), y, z + (chunk.getPos().z << 4)));
+                Vec3d flow = state.getFluidState().getVelocity(chunk.getWorld(), new BlockPos(x + (chunk.getPos().x << 4), y, z + (chunk.getPos().z << 4)));
                 if (flow.x != 0.0 || flow.z != 0.0) {
                     return PathingBlockType.WATER;
                 }
@@ -155,7 +154,7 @@ public final class ChunkPacker {
         // however, this failed in the nether when you were near a nether fortress
         // because fences check their adjacent blocks in the world for their fence connection status to determine AABB shape
         // this caused a nullpointerexception when we saved chunks on unload, because they were unable to check their neighbors
-        if (block instanceof AirBlock || block instanceof TallGrassBlock || block instanceof DoublePlantBlock || block instanceof FlowerBlock) {
+        if (block instanceof AirBlock || block instanceof ShortPlantBlock || block instanceof TallPlantBlock || block instanceof FlowerBlock) {
             return PathingBlockType.AIR;
         }
 
@@ -165,21 +164,21 @@ public final class ChunkPacker {
     public static BlockState pathingTypeToBlock(PathingBlockType type, DimensionType dimension) {
         switch (type) {
             case AIR:
-                return Blocks.AIR.defaultBlockState();
+                return Blocks.AIR.getDefaultState();
             case WATER:
-                return Blocks.WATER.defaultBlockState();
+                return Blocks.WATER.getDefaultState();
             case AVOID:
-                return Blocks.LAVA.defaultBlockState();
+                return Blocks.LAVA.getDefaultState();
             case SOLID:
                 // Dimension solid types
                 if (dimension.natural()) {
-                    return Blocks.STONE.defaultBlockState();
+                    return Blocks.STONE.getDefaultState();
                 }
-                if (dimension.ultraWarm()) {
-                    return Blocks.NETHERRACK.defaultBlockState();
+                if (dimension.ultrawarm()) {
+                    return Blocks.NETHERRACK.getDefaultState();
                 }
-                if (dimension.effectsLocation().equals(BuiltinDimensionTypes.END_EFFECTS)) {
-                    return Blocks.END_STONE.defaultBlockState();
+                if (dimension.effects().equals(DimensionTypes.THE_END_ID)) {
+                    return Blocks.END_STONE.getDefaultState();
                 }
             default:
                 return null;

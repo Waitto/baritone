@@ -17,11 +17,11 @@
 
 package baritone.process.elytra.pathfinder;
 
-import net.minecraft.core.BlockPos;
-import net.minecraft.util.Mth;
 import java.util.ArrayList;
 import java.util.List;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.math.Vec3d;
 
 /**
  * A ray through the chunk octrees: "An efficient parametric algorithm for octree traversal"
@@ -271,7 +271,7 @@ public final class Raytracer {
      * of no length is a point, which is a hit if it is inside a block; a coordinate that is not a
      * finite number is refused.
      */
-    public static Vec3 raytrace(NetherPathfinder ctx, double fx, double fy, double fz, double tx, double ty, double tz, NetherPathfinder.CacheMiss fakeChunkMode) {
+    public static Vec3d raytrace(NetherPathfinder ctx, double fx, double fy, double fz, double tx, double ty, double tz, NetherPathfinder.CacheMiss fakeChunkMode) {
         final double vx = tx - fx;
         final double vy = ty - fy;
         final double vz = tz - fz;
@@ -286,14 +286,14 @@ public final class Raytracer {
             // A point. The same division would make the direction NaN here too, and the native
             // library exited the process. A ray that starts inside a block reports a hit at its
             // origin, so a point does the same, and one in the air hits nothing.
-            final int bx = Mth.floor(fx);
-            final int by = Mth.floor(fy);
-            final int bz = Mth.floor(fz);
+            final int bx = MathHelper.floor(fx);
+            final int by = MathHelper.floor(fy);
+            final int bz = MathHelper.floor(fz);
             final Chunk chunk = ctx.getRealChunkFromCacheOrFakeChunkMaybeGen(bx >> 4, bz >> 4, fakeChunkMode);
             if (by < 0 || by >= Chunk.HEIGHT || !chunk.isSolid(bx & 15, by, bz & 15)) {
                 return null;
             }
-            return new Vec3(fx, fy, fz);
+            return new Vec3d(fx, fy, fz);
         }
         final double dx = vx / targetLen;
         final double dy = vy / targetLen;
@@ -303,9 +303,9 @@ public final class Raytracer {
         if (dy < 0.0) a |= 2;
         if (dz < 0.0) a |= 1;
 
-        int nx = Mth.floor(fx) & ~15;
-        int ny = Mth.floor(fy) & ~15;
-        int nz = Mth.floor(fz) & ~15;
+        int nx = MathHelper.floor(fx) & ~15;
+        int ny = MathHelper.floor(fy) & ~15;
+        int nz = MathHelper.floor(fz) & ~15;
         final Step step = new Step();
         while (true) {
             final Chunk chunk = ctx.getRealChunkFromCacheOrFakeChunkMaybeGen(nx >> 4, nz >> 4, fakeChunkMode);
@@ -322,9 +322,9 @@ public final class Raytracer {
             if (result == HIT) {
                 if (step.hitLen < 0.0) {
                     // the origin was inside an occupied block, so the hit is the origin
-                    return new Vec3(fx, fy, fz);
+                    return new Vec3d(fx, fy, fz);
                 }
-                return new Vec3(fx + dx * step.hitLen, fy + dy * step.hitLen, fz + dz * step.hitLen);
+                return new Vec3d(fx + dx * step.hitLen, fy + dy * step.hitLen, fz + dz * step.hitLen);
             }
             switch (step.exitPlane) {
                 case PLANE_XY:

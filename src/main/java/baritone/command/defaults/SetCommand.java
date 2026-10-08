@@ -29,18 +29,17 @@ import baritone.api.command.exception.CommandInvalidTypeException;
 import baritone.api.command.helpers.Paginator;
 import baritone.api.command.helpers.TabCompleteHelper;
 import baritone.api.utils.SettingsUtil;
-import net.minecraft.ChatFormatting;
-import net.minecraft.client.Minecraft;
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.ClickEvent;
-import net.minecraft.network.chat.HoverEvent;
-import net.minecraft.network.chat.MutableComponent;
-
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.text.ClickEvent;
+import net.minecraft.text.HoverEvent;
+import net.minecraft.text.MutableText;
+import net.minecraft.text.Text;
+import net.minecraft.util.Formatting;
 
 import static baritone.api.command.IBaritoneChatControl.FORCE_COMMAND_PREFIX;
 import static baritone.api.utils.SettingsUtil.*;
@@ -92,20 +91,20 @@ public class SetCommand extends Command {
                                     : String.format("All %ssettings:", viewModified ? "modified " : "")
                     ),
                     setting -> {
-                        MutableComponent typeComponent = Component.literal(String.format(
+                        MutableText typeComponent = Text.literal(String.format(
                                 " (%s)",
                                 settingTypeToString(setting)
                         ));
-                        typeComponent.setStyle(typeComponent.getStyle().withColor(ChatFormatting.DARK_GRAY));
-                        MutableComponent hoverComponent = Component.literal("");
-                        hoverComponent.setStyle(hoverComponent.getStyle().withColor(ChatFormatting.GRAY));
+                        typeComponent.setStyle(typeComponent.getStyle().withColor(Formatting.DARK_GRAY));
+                        MutableText hoverComponent = Text.literal("");
+                        hoverComponent.setStyle(hoverComponent.getStyle().withColor(Formatting.GRAY));
                         hoverComponent.append(setting.getName());
                         hoverComponent.append(String.format("\nType: %s", settingTypeToString(setting)));
                         hoverComponent.append(String.format("\n\nValue:\n%s", settingValueToString(setting)));
                         hoverComponent.append(String.format("\n\nDefault Value:\n%s", settingDefaultToString(setting)));
                         String commandSuggestion = Baritone.settings().prefix.value + String.format("set %s ", setting.getName());
-                        MutableComponent component = Component.literal(setting.getName());
-                        component.setStyle(component.getStyle().withColor(ChatFormatting.GRAY));
+                        MutableText component = Text.literal(setting.getName());
+                        component.setStyle(component.getStyle().withColor(Formatting.GRAY));
                         component.append(typeComponent);
                         component.setStyle(component.getStyle()
                                 .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, hoverComponent))
@@ -185,12 +184,12 @@ public class SetCommand extends Command {
                         settingValueToString(setting)
                 ));
             }
-            MutableComponent oldValueComponent = Component.literal(String.format("Old value: %s", oldValue));
+            MutableText oldValueComponent = Text.literal(String.format("Old value: %s", oldValue));
             oldValueComponent.setStyle(oldValueComponent.getStyle()
-                    .withColor(ChatFormatting.GRAY)
+                    .withColor(Formatting.GRAY)
                     .withHoverEvent(new HoverEvent(
                             HoverEvent.Action.SHOW_TEXT,
-                            Component.literal("Click to set the setting back to this value")
+                            Text.literal("Click to set the setting back to this value")
                     ))
                     .withClickEvent(new ClickEvent(
                             ClickEvent.Action.RUN_COMMAND,
@@ -199,9 +198,9 @@ public class SetCommand extends Command {
             logDirect(oldValueComponent);
             if ((setting.getName().equals("chatControl") && !(Boolean) setting.value && !Baritone.settings().chatControlAnyway.value) ||
                     setting.getName().equals("chatControlAnyway") && !(Boolean) setting.value && !Baritone.settings().chatControl.value) {
-                logDirect("Warning: Chat commands will no longer work. If you want to revert this change, use prefix control (if enabled) or click the old value listed above.", ChatFormatting.RED);
+                logDirect("Warning: Chat commands will no longer work. If you want to revert this change, use prefix control (if enabled) or click the old value listed above.", Formatting.RED);
             } else if (setting.getName().equals("prefixControl") && !(Boolean) setting.value) {
-                logDirect("Warning: Prefixed commands will no longer work. If you want to revert this change, use chat control (if enabled) or click the old value listed above.", ChatFormatting.RED);
+                logDirect("Warning: Prefixed commands will no longer work. If you want to revert this change, use chat control (if enabled) or click the old value listed above.", Formatting.RED);
             }
         }
         SettingsUtil.save(Baritone.settings());
@@ -225,7 +224,7 @@ public class SetCommand extends Command {
                             .stream();
                 } else if (Arrays.asList("ld", "load").contains(arg.toLowerCase(Locale.US))) {
                     // settings always use the directory of the main Minecraft instance
-                    return RelativeFile.tabComplete(args, Minecraft.getInstance().gameDirectory.toPath().resolve("baritone").toFile());
+                    return RelativeFile.tabComplete(args, MinecraftClient.getInstance().runDirectory.toPath().resolve("baritone").toFile());
                 }
                 Settings.Setting setting = Baritone.settings().byLowerName.get(arg.toLowerCase(Locale.US));
                 if (setting != null) {

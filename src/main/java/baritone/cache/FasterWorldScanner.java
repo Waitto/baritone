@@ -24,24 +24,22 @@ import baritone.api.utils.BlockOptionalMeta;
 import baritone.api.utils.BlockOptionalMetaLookup;
 import baritone.api.utils.IPlayerContext;
 import baritone.utils.accessor.IPalettedContainer;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.IdMapper;
-import net.minecraft.util.BitStorage;
-import net.minecraft.world.level.ChunkPos;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.chunk.GlobalPalette;
-import net.minecraft.world.level.chunk.ChunkSource;
-import net.minecraft.world.level.chunk.LevelChunk;
-import net.minecraft.world.level.chunk.LevelChunkSection;
-import net.minecraft.world.level.chunk.Palette;
-import net.minecraft.world.level.chunk.PalettedContainer;
-import net.minecraft.world.level.chunk.SingleValuePalette;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.util.collection.PaletteStorage;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.ChunkPos;
+import net.minecraft.world.chunk.ChunkManager;
+import net.minecraft.world.chunk.ChunkSection;
+import net.minecraft.world.chunk.IdListPalette;
+import net.minecraft.world.chunk.Palette;
+import net.minecraft.world.chunk.PalettedContainer;
+import net.minecraft.world.chunk.SingularPalette;
+import net.minecraft.world.chunk.WorldChunk;
 
 public enum FasterWorldScanner implements IWorldScanner {
     INSTANCE;
@@ -73,7 +71,7 @@ public enum FasterWorldScanner implements IWorldScanner {
 
     @Override
     public int repack(IPlayerContext ctx, int range) {
-        ChunkSource chunkProvider = ctx.world().getChunkSource();
+        ChunkManager chunkProvider = ctx.world().getChunkManager();
         ICachedWorld cachedWorld = ctx.worldData().getCachedWorld();
 
         BetterBlockPos playerPos = ctx.playerFeet();
@@ -89,7 +87,7 @@ public enum FasterWorldScanner implements IWorldScanner {
         int queued = 0;
         for (int x = minX; x <= maxX; x++) {
             for (int z = minZ; z <= maxZ; z++) {
-                LevelChunk chunk = chunkProvider.getChunk(x, z, false);
+                WorldChunk chunk = chunkProvider.getWorldChunk(x, z, false);
 
                 if (chunk != null && !chunk.isEmpty()) {
                     queued++;
@@ -146,18 +144,18 @@ public enum FasterWorldScanner implements IWorldScanner {
 
     // max < 0 means no limit
     private Stream<BlockPos> scanChunkInternal(IPlayerContext ctx, BlockOptionalMetaLookup lookup, ChunkPos pos, int max) {
-        ChunkSource chunkProvider = ctx.world().getChunkSource();
+        ChunkManager chunkProvider = ctx.world().getChunkManager();
         // if chunk is not loaded, return empty stream
-        if (!chunkProvider.hasChunk(pos.x, pos.z)) {
+        if (!chunkProvider.isChunkLoaded(pos.x, pos.z)) {
             return Stream.empty();
         }
 
         long chunkX = (long) pos.x << 4;
         long chunkZ = (long) pos.z << 4;
 
-        int playerSectionY = (ctx.playerFeet().y - ctx.world().getMinY()) >> 4;
+        int playerSectionY = (ctx.playerFeet().y - ctx.world().getBottomY()) >> 4;
 
-        LevelChunk chunk = chunkProvider.getChunk(pos.x, pos.z, false);
+        WorldChunk chunk = chunkProvider.getWorldChunk(pos.x, pos.z, false);
         if (chunk == null) { // unloaded between hasChunk and here, we're not on the main thread
             return Stream.empty();
         }
@@ -165,13 +163,13 @@ public enum FasterWorldScanner implements IWorldScanner {
     }
 
 
-    private List<BlockPos> collectChunkSections(BlockOptionalMetaLookup lookup, LevelChunk chunk, long chunkX, long chunkZ, int playerSection, int max) {
+    private List<BlockPos> collectChunkSections(BlockOptionalMetaLookup lookup, WorldChunk chunk, long chunkX, long chunkZ, int playerSection, int max) {
         // iterate over sections relative to player
         // the caller only keeps the first max hits overall, in order, so no one chunk can ever contribute more than max
         // stop there. #mine stone used to build ~12k BlockPos per chunk, in every chunk, and throw nearly all of them out
         List<BlockPos> blocks = new ArrayList<>();
-        int chunkY = chunk.getMinY();
-        LevelChunkSection[] sections = chunk.getSections();
+        int chunkY = chunk.getBottomY();
+        ChunkSection[] sections = chunk.getSectionArray();
         int l = sections.length;
         int i = playerSection - 1;
         int j = playerSection;
@@ -186,12 +184,12 @@ public enum FasterWorldScanner implements IWorldScanner {
         return blocks;
     }
 
-    private void visitSection(BlockOptionalMetaLookup lookup, LevelChunkSection section, List<BlockPos> blocks, long chunkX, int sectionY, long chunkZ, int max) {
-        if (section == null || section.hasOnlyAir()) {
+    private void visitSection(BlockOptionalMetaLookup lookup, ChunkSection section, List<BlockPos> blocks, long chunkX, int sectionY, long chunkZ, int max) {
+        if (section == null || section.isEmpty()) {
             return;
         }
 
-        PalettedContainer<BlockState> sectionContainer = section.getStates();
+        PalettedContainer<BlockState> sectionContainer = section.getBlockStateContainer();
         //this won't work if the PaletteStorage is of the type EmptyPaletteStorage
         if (((IPalettedContainer<BlockState>) sectionContainer).getStorage() == null) {
             return;
@@ -199,9 +197,9 @@ public enum FasterWorldScanner implements IWorldScanner {
 
         Palette<BlockState> palette = ((IPalettedContainer<BlockState>) sectionContainer).getPalette();
 
-        if (palette instanceof SingleValuePalette) {
+        if (palette instanceof SingularPalette) {
             // single value palette doesn't have any data
-            if (lookup.has(palette.valueFor(0))) {
+            if (lookup.has(palette.get(0))) {
                 // this is 4k hits, but collectChunkSections's max keeps us from returning more than anyone will look at
                 for (int x = 0; x < 16; ++x) {
                     for (int y = 0; y < 16; ++y) {
@@ -223,10 +221,10 @@ public enum FasterWorldScanner implements IWorldScanner {
             return;
         }
 
-        BitStorage array = ((IPalettedContainer<BlockState>) section.getStates()).getStorage();
-        long[] longArray = array.getRaw();
+        PaletteStorage array = ((IPalettedContainer<BlockState>) section.getBlockStateContainer()).getStorage();
+        long[] longArray = array.getData();
         int arraySize = array.getSize();
-        int bitsPerEntry = array.getBits();
+        int bitsPerEntry = array.getElementBits();
         long maxEntryValue = (1L << bitsPerEntry) - 1L;
 
         for (int i = 0, idx = 0; i < longArray.length && idx < arraySize; ++i) {
@@ -279,11 +277,11 @@ public enum FasterWorldScanner implements IWorldScanner {
     }
 
     private boolean[] getIncludedFilterIndicesFromRegistry(BlockOptionalMetaLookup lookup) {
-        boolean[] isInFilter = new boolean[Block.BLOCK_STATE_REGISTRY.size()];
+        boolean[] isInFilter = new boolean[Block.STATE_IDS.size()];
 
         for (BlockOptionalMeta bom : lookup.blocks()) {
             for (BlockState state : bom.getAllBlockStates()) {
-                isInFilter[Block.BLOCK_STATE_REGISTRY.getId(state)] = true;
+                isInFilter[Block.STATE_IDS.getRawId(state)] = true;
             }
         }
 
@@ -294,7 +292,7 @@ public enum FasterWorldScanner implements IWorldScanner {
      * cheats to get the actual map of id -> blockstate from the various palette implementations
      */
     private static BlockState[] getPalette(Palette<BlockState> palette) {
-        if (palette instanceof GlobalPalette) {
+        if (palette instanceof IdListPalette) {
             // copying the entire registry is not nice so we treat it as a special case
             return PALETTE_REGISTRY_SENTINEL;
         } else {
@@ -303,7 +301,7 @@ public enum FasterWorldScanner implements IWorldScanner {
             int size = palette.getSize();
             BlockState[] states = new BlockState[size];
             for (int i = 0; i < size; i++) {
-                states[i] = palette.valueFor(i);
+                states[i] = palette.get(i);
             }
             return states;
         }

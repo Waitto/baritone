@@ -27,11 +27,11 @@ import baritone.api.utils.input.Input;
 import baritone.behavior.PathingBehavior;
 import baritone.utils.BlockStateInterface;
 import java.util.*;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.tags.FluidTags;
-import net.minecraft.world.entity.item.FallingBlockEntity;
-import net.minecraft.world.phys.AABB;
+import net.minecraft.entity.FallingBlockEntity;
+import net.minecraft.registry.tag.FluidTags;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Box;
+import net.minecraft.util.math.Direction;
 
 public abstract class Movement implements IMovement, MovementHelper {
 
@@ -125,7 +125,7 @@ public abstract class Movement implements IMovement, MovementHelper {
     public MovementStatus update() {
         ctx.player().getAbilities().flying = false;
         currentState = updateState(currentState);
-        if (MovementHelper.isLiquid(ctx, ctx.playerFeet()) || ctx.player().isInWater()) {
+        if (MovementHelper.isLiquid(ctx, ctx.playerFeet()) || ctx.player().isTouchingWater()) {
             if (shouldSwim()) {
                 // sprint is what enters and keeps the swim state. vanilla only STARTS sprinting from
                 // the key while on the ground or eye-underwater, and actively cancels it at the water
@@ -134,10 +134,10 @@ public abstract class Movement implements IMovement, MovementHelper {
                 // waiting for gravity to pull the eye under
                 currentState.setInput(Input.SPRINT, true);
                 ctx.player().setSprinting(true);
-                if (currentState.getStatus() == MovementStatus.RUNNING && ctx.player().isSwimming() && !ctx.player().onGround()) {
+                if (currentState.getStatus() == MovementStatus.RUNNING && ctx.player().isSwimming() && !ctx.player().isOnGround()) {
                     holdWaterline();
                     preTurnIntoTheBend();
-                } else if (!ctx.player().isSwimming() && ctx.player().onGround() && ctx.player().position().y < dest.y + 0.6) {
+                } else if (!ctx.player().isSwimming() && ctx.player().isOnGround() && ctx.player().getPos().y < dest.y + 0.6) {
                     // swim state hasn't latched yet and we're on the bottom: the old bob, for one tick
                     currentState.setInput(Input.JUMP, true);
                 }
@@ -149,12 +149,12 @@ public abstract class Movement implements IMovement, MovementHelper {
                     currentState.setInput(Input.SPRINT, false);
                     ctx.player().setSprinting(false);
                 }
-                if (ctx.player().position().y < dest.y + 0.6) {
+                if (ctx.player().getPos().y < dest.y + 0.6) {
                     currentState.setInput(Input.JUMP, true);
                 }
             }
         }
-        if (ctx.player().isInWall()) {
+        if (ctx.player().isInsideWall()) {
             ctx.getSelectedBlock().ifPresent(pos -> MovementHelper.switchToBestToolFor(ctx, BlockStateInterface.get(ctx, pos)));
             currentState.setInput(Input.CLICK_LEFT, true);
         }
@@ -228,9 +228,9 @@ public abstract class Movement implements IMovement, MovementHelper {
      */
     private boolean shouldSwim() {
         if (!Baritone.settings().allowSwimming.value
-                || !ctx.player().isInWater()
+                || !ctx.player().isTouchingWater()
                 || !Baritone.settings().allowSprint.value
-                || ctx.player().getFoodData().getFoodLevel() <= 6) {
+                || ctx.player().getHungerManager().getFoodLevel() <= 6) {
             return false;
         }
         if (currentState.getStatus() == MovementStatus.PREPPING) {
@@ -240,7 +240,7 @@ public abstract class Movement implements IMovement, MovementHelper {
             // stand up instead: eye out bobbing at the surface, full speed on the bottom of the shallows
             return false;
         }
-        if (!ctx.player().onGround()) {
+        if (!ctx.player().isOnGround()) {
             // floating: holdWaterline keeps the eye out, so air is never a problem out here
             return true;
         }
@@ -248,11 +248,11 @@ public abstract class Movement implements IMovement, MovementHelper {
         // crawl until it runs low, then stand up (which is what surfaces us here, pitch can't) and stay
         // standing until it's actually full, otherwise we'd get one tick of air and go right back under.
         // a swimmer just brushing the bottom at the shore keeps swimming, its eye is already out
-        int air = ctx.player().getAirSupply();
-        if (ctx.player().isUnderWater()) {
+        int air = ctx.player().getAir();
+        if (ctx.player().isSubmergedInWater()) {
             return air >= SURFACE_AT_AIR;
         }
-        return ctx.player().isSwimming() || air >= ctx.player().getMaxAirSupply();
+        return ctx.player().isSwimming() || air >= ctx.player().getMaxAir();
     }
 
     /**
@@ -266,11 +266,11 @@ public abstract class Movement implements IMovement, MovementHelper {
      * times the last tick's speed
      */
     private void holdWaterline() {
-        double feetY = ctx.player().position().y;
+        double feetY = ctx.player().getPos().y;
         double surfaceY = feetY + ctx.player().getFluidHeight(FluidTags.WATER);
         // the waterline, unless the movement is taking us higher (climbing out onto land)
         double targetY = Math.max(surfaceY - WATERLINE_DEPTH, dest.y + DEST_CLEARANCE);
-        double wanted = WATERLINE_GAIN * (targetY - feetY) - WATERLINE_DAMPING * ctx.player().getDeltaMovement().y;
+        double wanted = WATERLINE_GAIN * (targetY - feetY) - WATERLINE_DAMPING * ctx.player().getVelocity().y;
         float pitch = pitchForSwimVelocity(wanted);
         if (pitch == ctx.playerRotations().getPitch()) {
             // same convention as RotationUtils.reachable: equal to the current pitch means "don't care"
@@ -318,8 +318,8 @@ public abstract class Movement implements IMovement, MovementHelper {
         if (ax * bx + az * bz >= 0.99 * Math.hypot(ax, az) * Math.hypot(bx, bz)) {
             return; // straight chains share their heading exactly, anything else is a corner
         }
-        double speed = Math.hypot(ctx.player().getDeltaMovement().x, ctx.player().getDeltaMovement().z);
-        double dist = Math.hypot(dest.x + 0.5 - ctx.player().position().x, dest.z + 0.5 - ctx.player().position().z);
+        double speed = Math.hypot(ctx.player().getVelocity().x, ctx.player().getVelocity().z);
+        double dist = Math.hypot(dest.x + 0.5 - ctx.player().getPos().x, dest.z + 0.5 - ctx.player().getPos().z);
         if (dist < speed * WATER_COAST_TICKS) {
             float yaw = RotationUtils.calcRotationFromVec3d(ctx.playerHead(), VecUtils.getBlockPosCenter(next), ctx.playerRotations()).getYaw();
             currentState.getTarget().getRotation().ifPresent(rotation ->
@@ -356,7 +356,7 @@ public abstract class Movement implements IMovement, MovementHelper {
         }
         boolean somethingInTheWay = false;
         for (BetterBlockPos blockPos : positionsToBreak) {
-            if (!ctx.world().getEntitiesOfClass(FallingBlockEntity.class, new AABB(0, 0, 0, 1, 1.1, 1).move(blockPos)).isEmpty() && Baritone.settings().pauseMiningForFallingBlocks.value) {
+            if (!ctx.world().getNonSpectatingEntities(FallingBlockEntity.class, new Box(0, 0, 0, 1, 1.1, 1).offset(blockPos)).isEmpty() && Baritone.settings().pauseMiningForFallingBlocks.value) {
                 return false;
             }
             if (!MovementHelper.canWalkThrough(ctx, blockPos)) { // can't break air, so don't try

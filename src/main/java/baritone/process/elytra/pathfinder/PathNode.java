@@ -17,7 +17,7 @@
 
 package baritone.process.elytra.pathfinder;
 
-import net.minecraft.core.BlockPos;
+import net.minecraft.util.math.BlockPos;
 
 final class PathNode {
 

@@ -17,20 +17,20 @@
 
 package baritone.utils.accessor;
 
-import net.minecraft.util.BitStorage;
-import net.minecraft.world.level.chunk.Palette;
+import net.minecraft.util.collection.PaletteStorage;
+import net.minecraft.world.chunk.Palette;
 
 public interface IPalettedContainer<T> {
 
     Palette<T> getPalette();
 
-    BitStorage getStorage();
+    PaletteStorage getStorage();
 
 
     public interface IData<T> {
 
         Palette<T> getPalette();
 
-        BitStorage getStorage();
+        PaletteStorage getStorage();
     }
 }

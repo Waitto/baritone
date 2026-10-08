@@ -21,19 +21,18 @@ import baritone.Baritone;
 import baritone.pathing.movement.MovementHelper;
 import baritone.utils.BlockStateInterface;
 import baritone.utils.accessor.IBlockStateFlags;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.InfestedBlock;
-import net.minecraft.world.level.block.StainedGlassBlock;
-import net.minecraft.world.level.block.state.BlockState;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.Blocks;
+import net.minecraft.block.InfestedBlock;
+import net.minecraft.block.StainedGlassBlock;
 
 public class PrecomputedData {
 
-    private final int[] data = new int[Block.BLOCK_STATE_REGISTRY.size()];
+    private final int[] data = new int[Block.STATE_IDS.size()];
 
     /**
      * bit layout (low to high)
@@ -58,7 +57,7 @@ public class PrecomputedData {
     private static final AtomicInteger GENERATION = new AtomicInteger();
     // is the mixin there? ask once. a failing instanceof on an interface that nobody implements
     // makes the jvm scan the whole supertype list every time and we do this a lot
-    private static final boolean STAMPED_STATES = Blocks.AIR.defaultBlockState() instanceof IBlockStateFlags;
+    private static final boolean STAMPED_STATES = Blocks.AIR.getDefaultState() instanceof IBlockStateFlags;
     // starts at 1 so a blank state (0) never looks like ours
     private final int generation = GENERATION.incrementAndGet();
 
@@ -159,7 +158,7 @@ public class PrecomputedData {
     }
 
     private int flagsFromRegistry(BlockState state) {
-        int id = Block.BLOCK_STATE_REGISTRY.getId(state);
+        int id = Block.STATE_IDS.getRawId(state);
         int blockData = data[id];
         if ((blockData & COMPLETED_MASK) == 0) { // we need to fill in the data
             blockData = fillData(id, state);

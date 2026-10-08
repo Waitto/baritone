@@ -27,13 +27,12 @@ import baritone.api.utils.Pair;
 import baritone.cache.CachedChunk;
 import baritone.cache.WorldProvider;
 import baritone.utils.BlockStateInterface;
-import net.minecraft.world.level.ChunkPos;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.chunk.LevelChunk;
-
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
+import net.minecraft.block.BlockState;
+import net.minecraft.util.math.ChunkPos;
+import net.minecraft.world.World;
+import net.minecraft.world.chunk.WorldChunk;
 
 /**
  * @author Brady
@@ -89,18 +88,18 @@ public final class GameEventHandler implements IEventBus, Helper {
         EventState state = event.getState();
         ChunkEvent.Type type = event.getType();
 
-        Level world = baritone.getPlayerContext().world();
+        World world = baritone.getPlayerContext().world();
 
         // Whenever the server sends us to another dimension, chunks are unloaded
         // technically after the new world has been loaded, so we perform a check
         // to make sure the chunk being unloaded is already loaded.
         boolean isPreUnload = state == EventState.PRE
                 && type == ChunkEvent.Type.UNLOAD
-                && world.getChunkSource().getChunk(event.getX(), event.getZ(), null, false) != null;
+                && world.getChunkManager().getChunk(event.getX(), event.getZ(), null, false) != null;
 
         if (event.isPostPopulate() || isPreUnload) {
             baritone.getWorldProvider().ifWorldLoaded(worldData -> {
-                LevelChunk chunk = world.getChunk(event.getX(), event.getZ());
+                WorldChunk chunk = world.getChunk(event.getX(), event.getZ());
                 worldData.getCachedWorld().queueForPacking(chunk);
             });
         }
@@ -118,7 +117,7 @@ public final class GameEventHandler implements IEventBus, Helper {
 
             if (keepingTrackOf) {
                 baritone.getWorldProvider().ifWorldLoaded(worldData -> {
-                    final Level world = baritone.getPlayerContext().world();
+                    final World world = baritone.getPlayerContext().world();
                     ChunkPos pos = event.getChunkPos();
                     worldData.getCachedWorld().queueForPacking(world.getChunk(pos.x, pos.z));
                 });

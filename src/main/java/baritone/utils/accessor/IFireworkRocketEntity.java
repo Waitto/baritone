@@ -17,7 +17,7 @@
 
 package baritone.utils.accessor;
 
-import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.entity.LivingEntity;
 
 public interface IFireworkRocketEntity {
 

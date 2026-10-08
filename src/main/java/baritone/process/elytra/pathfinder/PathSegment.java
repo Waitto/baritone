@@ -18,7 +18,7 @@
 package baritone.process.elytra.pathfinder;
 
 import java.util.List;
-import net.minecraft.core.BlockPos;
+import net.minecraft.util.math.BlockPos;
 
 public class PathSegment {
     public final boolean finished;

@@ -22,28 +22,27 @@ import baritone.api.BaritoneAPI;
 import baritone.api.pathing.goals.GoalBlock;
 import baritone.api.utils.BetterBlockPos;
 import baritone.api.utils.Helper;
-import com.mojang.blaze3d.vertex.BufferBuilder;
-import com.mojang.blaze3d.vertex.PoseStack;
-import net.minecraft.ChatFormatting;
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.client.renderer.GameRenderer;
-import net.minecraft.core.BlockPos;
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.MutableComponent;
-import net.minecraft.network.chat.ClickEvent;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.level.ClipContext;
-import net.minecraft.world.phys.AABB;
-import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.HitResult;
-import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
 import org.joml.Vector4f;
 
-import java.awt.*;
+import java.awt.Color;
 import java.util.Collections;
+import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.client.network.ClientPlayerEntity;
+import net.minecraft.client.render.BufferBuilder;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.entity.Entity;
+import net.minecraft.text.ClickEvent;
+import net.minecraft.text.MutableText;
+import net.minecraft.text.Text;
+import net.minecraft.util.Formatting;
+import net.minecraft.util.hit.BlockHitResult;
+import net.minecraft.util.hit.HitResult;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Box;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.RaycastContext;
 
 import static baritone.api.command.IBaritoneChatControl.FORCE_COMMAND_PREFIX;
 
@@ -55,29 +54,29 @@ public class GuiClick extends Screen implements Helper {
     private BlockPos currentMouseOver;
 
     public GuiClick() {
-        super(Component.literal("CLICK"));
+        super(Text.literal("CLICK"));
     }
 
     @Override
-    public boolean isPauseScreen() {
+    public boolean shouldPause() {
         return false;
     }
 
     @Override
-    public void render(GuiGraphics stack, int mouseX, int mouseY, float partialTicks) {
-        double mx = mc.mouseHandler.xpos();
-        double my = mc.mouseHandler.ypos();
+    public void render(DrawContext stack, int mouseX, int mouseY, float partialTicks) {
+        double mx = mc.mouse.getX();
+        double my = mc.mouse.getY();
 
-        my = mc.getWindow().getScreenHeight() - my;
-        my *= mc.getWindow().getHeight() / (double) mc.getWindow().getScreenHeight();
-        mx *= mc.getWindow().getWidth() / (double) mc.getWindow().getScreenWidth();
-        Vec3 near = toWorld(mx, my, 0);
-        Vec3 far = toWorld(mx, my, 1); // "Use 0.945 that's what stack overflow says" - leijurv
+        my = mc.getWindow().getHeight() - my;
+        my *= mc.getWindow().getFramebufferHeight() / (double) mc.getWindow().getHeight();
+        mx *= mc.getWindow().getFramebufferWidth() / (double) mc.getWindow().getWidth();
+        Vec3d near = toWorld(mx, my, 0);
+        Vec3d far = toWorld(mx, my, 1); // "Use 0.945 that's what stack overflow says" - leijurv
 
         if (near != null && far != null) {
-            Vec3 viewerPos = new Vec3(PathRenderer.posX(), PathRenderer.posY(), PathRenderer.posZ());
-            LocalPlayer player = BaritoneAPI.getProvider().getPrimaryBaritone().getPlayerContext().player();
-            HitResult result = player.level().clip(new ClipContext(near.add(viewerPos), far.add(viewerPos), ClipContext.Block.OUTLINE, ClipContext.Fluid.NONE, player));
+            Vec3d viewerPos = new Vec3d(PathRenderer.posX(), PathRenderer.posY(), PathRenderer.posZ());
+            ClientPlayerEntity player = BaritoneAPI.getProvider().getPrimaryBaritone().getPlayerContext().player();
+            HitResult result = player.getWorld().raycast(new RaycastContext(near.add(viewerPos), far.add(viewerPos), RaycastContext.ShapeType.OUTLINE, RaycastContext.FluidHandling.NONE, player));
             if (result != null && result.getType() == HitResult.Type.BLOCK) {
                 currentMouseOver = ((BlockHitResult) result).getBlockPos();
                 return;
@@ -93,9 +92,9 @@ public class GuiClick extends Screen implements Helper {
                 if (clickStart != null && !clickStart.equals(currentMouseOver)) {
                     BaritoneAPI.getProvider().getPrimaryBaritone().getSelectionManager().removeAllSelections();
                     BaritoneAPI.getProvider().getPrimaryBaritone().getSelectionManager().addSelection(BetterBlockPos.from(clickStart), BetterBlockPos.from(currentMouseOver));
-                    MutableComponent component = Component.literal("Selection made! For usage: " + Baritone.settings().prefix.value + "help sel");
+                    MutableText component = Text.literal("Selection made! For usage: " + Baritone.settings().prefix.value + "help sel");
                     component.setStyle(component.getStyle()
-                            .withColor(ChatFormatting.WHITE)
+                            .withColor(Formatting.WHITE)
                             .withClickEvent(new ClickEvent(
                                     ClickEvent.Action.RUN_COMMAND,
                                     FORCE_COMMAND_PREFIX + "help sel"
@@ -106,7 +105,7 @@ public class GuiClick extends Screen implements Helper {
                     BaritoneAPI.getProvider().getPrimaryBaritone().getCustomGoalProcess().setGoalAndPath(new GoalBlock(currentMouseOver));
                 }
             } else if (mouseButton == 1) {
-                BaritoneAPI.getProvider().getPrimaryBaritone().getCustomGoalProcess().setGoalAndPath(new GoalBlock(currentMouseOver.above()));
+                BaritoneAPI.getProvider().getPrimaryBaritone().getCustomGoalProcess().setGoalAndPath(new GoalBlock(currentMouseOver.up()));
             }
         }
         clickStart = null;
@@ -119,9 +118,9 @@ public class GuiClick extends Screen implements Helper {
         return super.mouseClicked(mouseX, mouseY, mouseButton);
     }
 
-    public void onRender(PoseStack modelViewStack, Matrix4f projectionMatrix) {
+    public void onRender(MatrixStack modelViewStack, Matrix4f projectionMatrix) {
         this.projectionViewMatrix = new Matrix4f(projectionMatrix);
-        this.projectionViewMatrix.mul(modelViewStack.last().pose());
+        this.projectionViewMatrix.mul(modelViewStack.peek().getPositionMatrix());
         this.projectionViewMatrix.invert();
 
         if (currentMouseOver != null) {
@@ -132,19 +131,19 @@ public class GuiClick extends Screen implements Helper {
                 BufferBuilder bufferBuilder = IRenderer.startLines(Color.RED, Baritone.settings().pathRenderLineWidthPixels.value, true);
                 BetterBlockPos a = new BetterBlockPos(currentMouseOver);
                 BetterBlockPos b = new BetterBlockPos(clickStart);
-                IRenderer.emitAABB(bufferBuilder, modelViewStack, new AABB(Math.min(a.x, b.x), Math.min(a.y, b.y), Math.min(a.z, b.z), Math.max(a.x, b.x) + 1, Math.max(a.y, b.y) + 1, Math.max(a.z, b.z) + 1));
+                IRenderer.emitAABB(bufferBuilder, modelViewStack, new Box(Math.min(a.x, b.x), Math.min(a.y, b.y), Math.min(a.z, b.z), Math.max(a.x, b.x) + 1, Math.max(a.y, b.y) + 1, Math.max(a.z, b.z) + 1));
                 IRenderer.endLines(bufferBuilder, true);
             }
         }
     }
 
-    private Vec3 toWorld(double x, double y, double z) {
+    private Vec3d toWorld(double x, double y, double z) {
         if (this.projectionViewMatrix == null) {
             return null;
         }
 
-        x /= mc.getWindow().getWidth();
-        y /= mc.getWindow().getHeight();
+        x /= mc.getWindow().getFramebufferWidth();
+        y /= mc.getWindow().getFramebufferHeight();
         x = x * 2 - 1;
         y = y * 2 - 1;
 
@@ -156,6 +155,6 @@ public class GuiClick extends Screen implements Helper {
         }
 
         pos.mul(1/pos.w());
-        return new Vec3(pos.x(), pos.y(), pos.z());
+        return new Vec3d(pos.x(), pos.y(), pos.z());
     }
 }

@@ -23,10 +23,9 @@ import baritone.api.event.events.TickEvent;
 import baritone.api.utils.IInputOverrideHandler;
 import baritone.api.utils.input.Input;
 import baritone.behavior.Behavior;
-import net.minecraft.client.player.KeyboardInput;
-
 import java.util.HashMap;
 import java.util.Map;
+import net.minecraft.client.input.KeyboardInput;
 
 /**
  * An interface with the game's control system allowing the ability to

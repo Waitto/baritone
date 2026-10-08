@@ -25,19 +25,22 @@ import baritone.pathing.precompute.PrecomputedData;
 import baritone.utils.BlockStateInterface;
 import baritone.utils.ToolSet;
 import baritone.utils.pathing.BetterWorldBorder;
-import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Holder;
-import net.minecraft.world.entity.EquipmentSlot;
-import net.minecraft.world.entity.ai.attributes.Attributes;
-import net.minecraft.world.entity.player.Inventory;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
-import net.minecraft.world.item.enchantment.*;
-import net.minecraft.world.item.enchantment.effects.EnchantmentAttributeEffect;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.client.network.ClientPlayerEntity;
+import net.minecraft.component.EnchantmentEffectComponentTypes;
+import net.minecraft.component.type.ItemEnchantmentsComponent;
+import net.minecraft.enchantment.Enchantment;
+import net.minecraft.enchantment.Enchantments;
+import net.minecraft.enchantment.effect.AttributeEnchantmentEffect;
+import net.minecraft.entity.EquipmentSlot;
+import net.minecraft.entity.attribute.EntityAttributes;
+import net.minecraft.entity.player.PlayerInventory;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.Items;
+import net.minecraft.registry.entry.RegistryEntry;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.World;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -55,7 +58,7 @@ public class CalculationContext {
 
     public final boolean safeForThreadedUse;
     public final IBaritone baritone;
-    public final Level world;
+    public final World world;
     public final WorldData worldData;
     public final BlockStateInterface bsi;
     public final ToolSet toolSet;
@@ -116,8 +119,8 @@ public class CalculationContext {
                 new BlockStateInterface(baritone.getPlayerContext(), forUseOnAnotherThread),
                 new ToolSet(baritone.getPlayerContext().player()),
                 Baritone.settings().allowPlace.value && ((Baritone) baritone).getInventoryBehavior().hasGenericThrowaway(),
-                Baritone.settings().allowWaterBucketFall.value && Inventory.isHotbarSlot(baritone.getPlayerContext().player().getInventory().findSlotMatchingItem(STACK_BUCKET_WATER)) && baritone.getPlayerContext().world().dimension() != Level.NETHER,
-                Baritone.settings().allowSprint.value && baritone.getPlayerContext().player().getFoodData().getFoodLevel() > 6,
+                Baritone.settings().allowWaterBucketFall.value && PlayerInventory.isValidHotbarIndex(baritone.getPlayerContext().player().getInventory().getSlotWithStack(STACK_BUCKET_WATER)) && baritone.getPlayerContext().world().getRegistryKey() != World.NETHER,
+                Baritone.settings().allowSprint.value && baritone.getPlayerContext().player().getHungerManager().getFoodLevel() > 6,
                 frostWalkerLevel(baritone.getPlayerContext().player()),
                 waterSpeedMultiplier(baritone.getPlayerContext().player())
         );
@@ -125,7 +128,7 @@ public class CalculationContext {
 
     // everything that needs a player or a world comes in as a parameter so you can build one of these with no game running
     // all the settings get snapshotted in here so nobody can accidentally read them differently
-    protected CalculationContext(IBaritone baritone, boolean forUseOnAnotherThread, Level world, WorldData worldData, BlockStateInterface bsi, ToolSet toolSet, boolean hasThrowaway, boolean hasWaterBucket, boolean canSprint, int frostWalker, float waterSpeedMultiplier) {
+    protected CalculationContext(IBaritone baritone, boolean forUseOnAnotherThread, World world, WorldData worldData, BlockStateInterface bsi, ToolSet toolSet, boolean hasThrowaway, boolean hasWaterBucket, boolean canSprint, int frostWalker, float waterSpeedMultiplier) {
         this.precomputedData = PrecomputedData.forCurrentSettings();
         this.safeForThreadedUse = forUseOnAnotherThread;
         this.baritone = baritone;
@@ -171,13 +174,13 @@ public class CalculationContext {
         this.worldBorder = bsi.worldBorder;
     }
 
-    private static int frostWalkerLevel(LocalPlayer player) {
+    private static int frostWalkerLevel(ClientPlayerEntity player) {
         // todo: technically there can now be datapack enchants that replace blocks with any other at any range
         int frostWalkerLevel = 0;
         for (EquipmentSlot slot : EquipmentSlot.values()) {
-            ItemEnchantments itemEnchantments = player.getItemBySlot(slot).getEnchantments();
-            for (Holder<Enchantment> enchant : itemEnchantments.keySet()) {
-                if (enchant.is(Enchantments.FROST_WALKER)) {
+            ItemEnchantmentsComponent itemEnchantments = player.getEquippedStack(slot).getEnchantments();
+            for (RegistryEntry<Enchantment> enchant : itemEnchantments.getEnchantments()) {
+                if (enchant.matchesKey(Enchantments.FROST_WALKER)) {
                     frostWalkerLevel = itemEnchantments.getLevel(enchant);
                 }
             }
@@ -185,14 +188,14 @@ public class CalculationContext {
         return frostWalkerLevel;
     }
 
-    private static float waterSpeedMultiplier(LocalPlayer player) {
+    private static float waterSpeedMultiplier(ClientPlayerEntity player) {
         for (EquipmentSlot slot : EquipmentSlot.values()) {
-            ItemEnchantments itemEnchantments = player.getItemBySlot(slot).getEnchantments();
-            for (Holder<Enchantment> enchant : itemEnchantments.keySet()) {
-                List<EnchantmentAttributeEffect> effects = enchant.value().getEffects(EnchantmentEffectComponents.ATTRIBUTES);
-                for (EnchantmentAttributeEffect effect : effects) {
-                    if (effect.attribute().is(Attributes.WATER_MOVEMENT_EFFICIENCY.unwrapKey().get())) {
-                        return effect.amount().calculate(itemEnchantments.getLevel(enchant));
+            ItemEnchantmentsComponent itemEnchantments = player.getEquippedStack(slot).getEnchantments();
+            for (RegistryEntry<Enchantment> enchant : itemEnchantments.getEnchantments()) {
+                List<AttributeEnchantmentEffect> effects = enchant.value().getEffect(EnchantmentEffectComponentTypes.ATTRIBUTES);
+                for (AttributeEnchantmentEffect effect : effects) {
+                    if (effect.attribute().matchesKey(EntityAttributes.WATER_MOVEMENT_EFFICIENCY.getKey().get())) {
+                        return effect.amount().getValue(itemEnchantments.getLevel(enchant));
                     }
                 }
             }
@@ -266,10 +269,10 @@ public class CalculationContext {
         if (!worldBorder.canPlaceAt(x, z)) {
             return COST_INF;
         }
-        if (!Baritone.settings().allowPlaceInFluidsSource.value && current.getFluidState().isSource()) {
+        if (!Baritone.settings().allowPlaceInFluidsSource.value && current.getFluidState().isStill()) {
             return COST_INF;
         }
-        if (!Baritone.settings().allowPlaceInFluidsFlow.value && !current.getFluidState().isEmpty() && !current.getFluidState().isSource()) {
+        if (!Baritone.settings().allowPlaceInFluidsFlow.value && !current.getFluidState().isEmpty() && !current.getFluidState().isStill()) {
             return COST_INF;
         }
         return placeBlockCost;

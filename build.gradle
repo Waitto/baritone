@@ -15,7 +15,7 @@ repositories {
 
 dependencies {
     minecraft "com.mojang:minecraft:1.21.4"
-    mappings loom.officialMojangMappings()
+    mappings "net.fabricmc:yarn:1.21.4+build.8:v2"
     modImplementation "net.fabricmc:fabric-loader:0.16.9"
 
     compileOnly "net.fabricmc:sponge-mixin:0.15.4+mixin.0.8.7"
