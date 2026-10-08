@@ -56,6 +56,35 @@ jobs:
           path: migration.log
           if-no-files-found: warn
 
+      - name: Repair Yarn source edge cases
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          root = Path("src/main/java")
+          replacements = {
+              "import java.awt.*;": "import java.awt.Color;",
+              "import net.minecraft.world.item.enchantment.*;": "",
+              "import net.minecraft.world.level.block.*;": "import net.minecraft.block.*;",
+              "import net.minecraft.network.chat.*;": "import net.minecraft.text.*;",
+              "import net.minecraft.network.protocol.game.*;": "import net.minecraft.network.packet.s2c.play.*;",
+              "import com.mojang.blaze3d.vertex.*;": "import net.minecraft.client.render.*;",
+          }
+
+          for path in root.rglob("*.java"):
+              text = path.read_text(encoding="utf-8")
+              old = text
+              for src, dst in replacements.items():
+                  text = text.replace(src, dst)
+              text = text.replace(
+                  "public abstract class Data<T> implements IData<T> {",
+                  "public abstract class MixinPalettedContainer$Data<T> implements IData<T> {"
+              )
+              if text != old:
+                  path.write_text(text, encoding="utf-8")
+          PY
+
       - name: Switch build to Yarn
         shell: bash
         run: |
