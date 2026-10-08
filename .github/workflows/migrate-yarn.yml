@@ -72,11 +72,18 @@ jobs:
               "import com.mojang.blaze3d.vertex.*;": "import net.minecraft.client.render.*;",
           }
 
+          special_awt = {
+              "src/main/java/baritone/api/utils/NotificationHelper.java": "import java.awt.*;",
+          }
+
           for path in root.rglob("*.java"):
               text = path.read_text(encoding="utf-8")
               old = text
               for src, dst in replacements.items():
                   text = text.replace(src, dst)
+
+              if path.as_posix() in special_awt:
+                  text = text.replace("import java.awt.Color;", special_awt[path.as_posix()])
               text = text.replace(
                   "public abstract class Data<T> implements IData<T> {",
                   "public abstract class MixinPalettedContainer$Data<T> implements IData<T> {"
