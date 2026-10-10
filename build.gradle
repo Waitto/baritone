@@ -19,10 +19,28 @@ dependencies {
     modImplementation "net.fabricmc:fabric-loader:0.16.9"
 
     compileOnly "net.fabricmc:sponge-mixin:0.15.4+mixin.0.8.7"
+    annotationProcessor "net.fabricmc:sponge-mixin:0.15.4+mixin.0.8.7"
     compileOnly files("META-INF/jars/nether-pathfinder-1.4.1.jar")
     implementation "com.google.code.findbugs:jsr305:3.0.2"
 }
 
+
+loom {
+    mixin {
+        defaultRefmapName = "mixins.baritone-meteor-refmap.json"
+    }
+}
+
+tasks.named("processResources") {
+    from("fabric.mod.json")
+    from("mixins.baritone-meteor.json")
+    from("META-INF/jars") {
+        into("META-INF/jars")
+    }
+    filesMatching("fabric.mod.json") {
+        expand(version: project.version)
+    }
+}
 
 java {
     toolchain {
