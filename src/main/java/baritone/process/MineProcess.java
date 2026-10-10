@@ -77,6 +77,26 @@ public final class MineProcess extends BaritoneProcessHelper implements IMinePro
     }
 
     @Override
+    public void minePositions(net.minecraft.item.Item item, Iterable<BlockPos> positions) {
+        this.filter = new BlockOptionalMetaLookup(Blocks.ANCIENT_DEBRIS);
+        this.desiredQuantity = 0;
+        this.knownOreLocations = new ArrayList<>();
+        for (BlockPos pos : positions) {
+            if (pos != null) {
+                this.knownOreLocations.add(pos.toImmutable());
+            }
+        }
+        this.blacklist = new ArrayList<>();
+        this.branchPoint = null;
+        this.branchPointRunaway = null;
+        this.anticipatedDrops = new HashMap<>();
+        this.tickCount = 0;
+        if (this.knownOreLocations.isEmpty()) {
+            this.cancel();
+        }
+    }
+
+    @Override
     public PathingCommand onTick(boolean calcFailed, boolean isSafeToCancel) {
         if (desiredQuantity > 0) {
             int curr = ctx.player().getInventory().main.stream()
