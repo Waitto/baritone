@@ -19,8 +19,13 @@ package baritone.api.process;
 
 import baritone.api.utils.BlockOptionalMeta;
 import baritone.api.utils.BlockOptionalMetaLookup;
+import java.util.Collections;
+import java.util.Set;
 import java.util.stream.Stream;
 import net.minecraft.block.Block;
+import net.minecraft.block.Blocks;
+import net.minecraft.item.Item;
+import net.minecraft.util.math.BlockPos;
 
 /**
  * @author Brady
@@ -112,5 +117,15 @@ public interface IMineProcess extends IBaritoneProcess {
      */
     default void cancel() {
         onLostControl();
+    }
+
+    /** Catalyst compatibility hook; mines ancient debris when invoked by AncientFarmer. */
+    default void minePositions(Item item, Iterable<BlockPos> positions) {
+        mine(0, Blocks.ANCIENT_DEBRIS);
+    }
+
+    /** Positions temporarily blacklisted after failed mining attempts. */
+    default Set<BlockPos> getBlacklist() {
+        return Collections.emptySet();
     }
 }
