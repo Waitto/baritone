@@ -78,7 +78,7 @@ public class MixinClientPlayerEntity {
             method = "tickMovement",
             at = @At(
                     value = "FIELD",
-                    target = "net/minecraft/world/entity/player/Abilities.mayfly:Z"
+                    target = "Lnet/minecraft/entity/player/PlayerAbilities;allowFlying:Z"
             )
     )
     @Group(name = "mayFly", min = 1, max = 1)
