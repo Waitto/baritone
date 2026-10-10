@@ -72,6 +72,11 @@ public final class MineProcess extends BaritoneProcessHelper implements IMinePro
     }
 
     @Override
+    public Set<BlockPos> getBlacklist() {
+        return blacklist == null ? Collections.emptySet() : new HashSet<>(blacklist);
+    }
+
+    @Override
     public PathingCommand onTick(boolean calcFailed, boolean isSafeToCancel) {
         if (desiredQuantity > 0) {
             int curr = ctx.player().getInventory().main.stream()
