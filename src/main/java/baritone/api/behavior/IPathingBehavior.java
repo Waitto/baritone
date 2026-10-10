@@ -78,6 +78,9 @@ public interface IPathingBehavior extends IBehavior {
      */
     boolean isPathing();
 
+    /** Request a safe pause at the next cancellable movement boundary. */
+    void requestPause();
+
     /**
      * @return If there is a current path. Note that the path is not necessarily being executed, for example when there
      * is a pause in effect.
