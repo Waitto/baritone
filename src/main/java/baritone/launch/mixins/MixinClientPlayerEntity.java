@@ -84,7 +84,7 @@ public class MixinClientPlayerEntity {
     @Group(name = "mayFly", min = 1, max = 1)
     private boolean isAllowFlying(PlayerAbilities capabilities) {
         IBaritone baritone = BaritoneAPI.getProvider().getBaritoneForPlayer((ClientPlayerEntity) (Object) this);
-        if (baritone == null) {
+        if (baritone == null || BaritoneAPI.getSettings().creative.value) {
             return capabilities.allowFlying;
         }
         return !baritone.getPathingBehavior().isPathing() && capabilities.allowFlying;
@@ -100,7 +100,7 @@ public class MixinClientPlayerEntity {
     @Group(name = "mayFly", min = 1, max = 1)
     private boolean onMayFlyNeoforge(ClientPlayerEntity instance) throws Throwable {
         IBaritone baritone = BaritoneAPI.getProvider().getBaritoneForPlayer((ClientPlayerEntity) (Object) this);
-        if (baritone == null) {
+        if (baritone == null || BaritoneAPI.getSettings().creative.value) {
             return (boolean) MAY_FLY.invokeExact(instance);
         }
         return !baritone.getPathingBehavior().isPathing() && (boolean) MAY_FLY.invokeExact(instance);
