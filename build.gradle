@@ -27,6 +27,7 @@ dependencies {
 
 loom {
     mixin {
+        useLegacyMixinAp = true
         defaultRefmapName = "mixins.baritone-meteor-refmap.json"
     }
 }
