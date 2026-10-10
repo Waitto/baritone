@@ -60,6 +60,10 @@ public final class Settings {
      */
     public final Setting<Boolean> allowBreak = new Setting<>(true);
 
+    /** Compatibility settings exposed by Catalyst. */
+    public final Setting<Boolean> creative = new Setting<>(false);
+    public final Setting<Float> turnSpeed = new Setting<>(60.0f);
+
     /**
      * Blocks that baritone will be allowed to break even with allowBreak set to false
      */
