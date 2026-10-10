@@ -46,7 +46,11 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
-          gradle migrateMappings --mappings "1.21.4+build.8" --overrideInputsIHaveABackup --stacktrace --info 2>&1 | tee migration.log
+          if grep -q 'import net.minecraft.client.MinecraftClient;' src/main/java/baritone/Baritone.java; then
+            echo "Sources already use Yarn mappings; skipping migration" | tee migration.log
+          else
+            gradle migrateMappings --mappings "1.21.4+build.8" --overrideInputsIHaveABackup --stacktrace --info 2>&1 | tee migration.log
+          fi
 
       - name: Upload migration log
         if: always()
@@ -118,7 +122,7 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
-          gradle compileJava --no-daemon --stacktrace 2>&1 | tee compile.log
+          gradle build --no-daemon --stacktrace 2>&1 | tee compile.log
 
       - name: Upload compile log
         if: always()
@@ -127,6 +131,35 @@ jobs:
           name: compile-log
           path: compile.log
           if-no-files-found: warn
+
+
+      - name: Verify runnable Fabric jar
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile
+
+          required = {
+              "fabric.mod.json",
+              "mixins.baritone-meteor.json",
+              "mixins.baritone-meteor-refmap.json",
+              "baritone/Baritone.class",
+              "META-INF/jars/nether-pathfinder-1.4.1.jar",
+          }
+
+          for jar in Path("build/libs").glob("*.jar"):
+              try:
+                  with ZipFile(jar) as archive:
+                      missing = required - set(archive.namelist())
+                      if not missing:
+                          print(f"Verified runnable jar: {jar}")
+                          break
+              except Exception:
+                  continue
+          else:
+              raise SystemExit("No built jar contains Baritone classes, Fabric metadata, Mixin config/refmap, and nested dependency")
+          PY
 
       - name: Archive migrated sources
         if: always()
